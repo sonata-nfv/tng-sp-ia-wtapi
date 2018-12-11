@@ -46,6 +46,8 @@ ENV repo_path http://tng-rep:4012/
 ENV vnfr_collection vnfrs
 ENV nsr_collection nsrs
 
+ENV WIM_IP 10.1.1.54
+
 
 
 # Monitoring information
