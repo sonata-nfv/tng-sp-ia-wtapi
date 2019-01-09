@@ -70,159 +70,138 @@ class TapiWrapperEngine(object):
         :return:
         """
 
-        wim_ip = os.environ.get('WIM_IP', '10.1.1.54')
-        wim_port = os.environ.get('WIM_PORT', 9881)
-        nbi_call_url = 'http://{}:{}/restconf/config/calls/call/'.format(wim_ip, wim_port)
-        # tapi_cs_url = 'http://{}:8182/restconf/config/context/connectivity-service/'.format(wim_ip, wim_port)
-        connection_file = 'connections_commpilot.txt'
-        entities_file = 'entities.txt'
-        call_index=50
+        # connection_file = 'connections_commpilot.txt'
+        # entities_file = 'entities.txt'
+        #
+        # # Get info from VIM and VNFD
+        # with open(entities_file, 'r') as efp:
+        #     self.entities = efp.readlines()
+        #
+        # # Get info from VLD -> this is done in main script
+        # with open(connection_file, 'r') as cfp:
+        #     self.virtual_links = cfp.readlines()
 
-        # Get info from VIM and VNFD
-        with open(entities_file, 'r') as efp:
-            self.entities = efp.readlines()
-
-        # Get info from VLD -> this is done in main script
-        with open(connection_file, 'r') as cfp:
-            self.virtual_links = cfp.readlines()
-        vnf_str = []
-        cp_str = []
-
-        for line in self.entities:
-            line_split=line.split()
-            if line_split[0] == 'vnf':
-                vnf_str.append(
-                    {
-                        'name': line_split[1],
-                        'net_addr': line_split[2],
-                        'hw_addr': line_split[3],
-                        'ref': line_split[4]
-                    }
-                )
-            elif line.split()[0] == 'cp':
-                cp_str.append(
-                    {
-                        'name': line_split[1],
-                        'net_addr': line_split[2],
-                        'hw_addr': '00:00:'+line_split[3],
-                        'port': line_split[4],
-                        'ref': line_split[5],
-                        'extra': line_split[6]
-                    }
-                )
-        calls = []
-        for line in self.virtual_links:
-            vl_pair=line.strip().split(',')
-            # print(vl_pair)
-            a_filter = list(filter(lambda vnf: vnf['name'] == vl_pair[0], vnf_str))
-            if len(a_filter) > 0:
-                a_vnf = a_filter[0]
-                a_cp = list(filter(lambda cp: cp['name'] == a_vnf['ref'], cp_str))[0]
-            else:
-                a_cp = list(filter(lambda cp: cp['name'] == vl_pair[0], cp_str))[0]
-                a_vnf = {'net_addr': a_cp['net_addr'],'hw_addr': a_cp['extra']}
-
-            z_filter = list(filter(lambda vnf: vnf['name'] == vl_pair[1], vnf_str))
-            if len(z_filter) > 0:
-                z_vnf = z_filter[0]
-                z_cp = list(filter(lambda cp: cp['name'] == z_vnf['ref'], cp_str))[0]
-            else:
-                z_cp = list(filter(lambda cp: cp['name'] == vl_pair[1], cp_str))[0]
-                z_vnf = {'net_addr': z_cp['net_addr'],'hw_addr': z_cp['extra']}
-
-            if a_cp['ref'] != z_cp['ref']:
-                call_skeleton_l3 = {
-                        "callId": str(call_index),
-                        "contextId": "admin",
-                        "aEnd": {
-                            "nodeId": a_cp['hw_addr'],
-                            "edgeEndId": a_cp['port'],
-                            "endpointId": a_cp['hw_addr']+'_'+a_cp['port']
-                        },
-                        "zEnd": {
-                            "nodeId": z_cp['hw_addr'],
-                            "edgeEndId": z_cp['port'],
-                            "endpointId": z_cp['hw_addr'] + '_' + z_cp['port']
-                        },
-                        "transportLayer": {
-                            "layer": "ethernet",
-                            "direction": "bidir"
-                        },
-                        "trafficParams": {
-                            "reservedBandwidth": "50000"
-                        },
-                        "match": {
-                            'ethSrc': a_vnf['hw_addr'] + '/ff:ff:ff:ff:ff:ff',
-                            'ethDst': z_vnf['hw_addr'] + '/ff:ff:ff:ff:ff:ff'
-                        }
-                    }
-
-                call_skeleton_l2 = {
-                    "callId": str(call_index + 100),
-                    "contextId": "admin",
-                    "aEnd": {
-                        "nodeId": a_cp['hw_addr'],
-                        "edgeEndId": a_cp['port'],
-                        "endpointId": a_cp['hw_addr'] + '_' + a_cp['port']
-                    },
-                    "zEnd": {
-                        "nodeId": z_cp['hw_addr'],
-                        "edgeEndId": z_cp['port'],
-                        "endpointId": z_cp['hw_addr'] + '_' + z_cp['port']
-                    },
-                    "transportLayer": {
-                        "layer": "ethernet",
-                        "direction": "bidir"
-                    },
-                    "trafficParams": {
-                        "reservedBandwidth": "1000"
-                    },
-                    "match": {
-                        'ethType': 2054,
-                        'arpSpa': a_vnf['net_addr'] + '/32',
-                        'arpTpa': z_vnf['net_addr'] + '/32'
-                    }
-                }
-                calls.append(str(call_skeleton_l3))
-                calls.append(str(call_skeleton_l2))
-                # print(call_skeleton_l3)
-                LOG.debug('Q_net:{}'.format(call_skeleton_l3))
-                headers = {
-                    'Content-type': 'application/json'
-                }
-                response = requests.post(nbi_call_url + call_skeleton_l3['callId'],
-                                         json=call_skeleton_l3,
-                                         headers=headers)
-                LOG.debug('R_net:{}'.format(response.content))
-
-                LOG.debug('Q_link:{}'.format(call_skeleton_l2))
-                response = requests.post(nbi_call_url + call_skeleton_l2['callId'],
-                                         json=call_skeleton_l2,
-                                         headers=headers)
-                LOG.debug('R_link:{}'.format(response.content))
-                call_index += 1
-            else:
-                print('Call is not required since connection point is the same')
-
-            if 'a_vnf' in vars():
-                del a_vnf
-            if 'z_vnf' in vars():
-                del z_vnf
+        self.wim_ip = os.getenv('WIM_IP', '10.1.1.54')
+        self.wim_port = os.getenv('WIM_PORT', 9881)
+        # self.wim_port = os.getenv('WIM_PORT', 8182)
 
 
     def get_topology(self):
-        pass
+        nbi_topology_url = 'http://' + self.wim_ip + ':' + str(self.wim_port) + '/restconf/config/context/topology/0'
+        # tapi_topology_url = 'http://' + self.wim_ip + ':' + str(self.wim_port) + '/restconf/config/context/topology/0/'
+        wim_topology = requests.get(nbi_topology_url)
+        return wim_topology.json()
 
     def get_nodes(self):
-        pass
+        return
 
-    def create_connectivity_service(self):
+    def create_connectivity_service(self, uuid):
+        """
+        Call this function per virtual link
+        :param uuid:
+        :return:
+        """
         LOG.info('Creating connectivity service')
-        return
 
-    def remove_connectivity_service(self):
+        nbi_base_call_url = 'http://{}:{}/restconf/config/calls/call/'.format(self.wim_ip, self.wim_port)
+        # tapi_cs_url = 'http://{}:{}/restconf/config/context/connectivity-service/'.format(
+        #    self.wim_ip, self.wim_port)
+
+        a_vnf = {
+            'hw_addr': '00:1f:c6:9c:36:67'
+        }
+        z_vnf = {
+            'hw_addr': 'fc:16:3e:f6:bb:c7'
+        }
+
+        a_cp = {
+            'ref':'cp01',
+            'hw_addr': '00:00:00:1b:21:7a:65:a8',
+            'port': '3',
+        }
+        z_cp = {
+            'ref':'cp21',
+            'hw_addr': '00:00:00:1e:67:a1:8f:c1',
+            'port': '6',
+        }
+
+        if a_cp['ref'] != z_cp['ref']:
+            call_skeleton_l3 = {
+                "callId": str(uuid),
+                "contextId": "admin",
+                "aEnd": {
+                    "nodeId": a_cp['hw_addr'],
+                    "edgeEndId": a_cp['port'],
+                    "endpointId": a_cp['hw_addr'] + '_' + a_cp['port']
+                },
+                "zEnd": {
+                    "nodeId": z_cp['hw_addr'],
+                    "edgeEndId": z_cp['port'],
+                    "endpointId": z_cp['hw_addr'] + '_' + z_cp['port']
+                },
+                "transportLayer": {
+                    "layer": "ethernet",
+                    "direction": "bidir"
+                },
+                "trafficParams": {
+                    "reservedBandwidth": "50000"
+                },
+                "match": {
+                    'ethSrc': a_vnf['hw_addr'] + '/ff:ff:ff:ff:ff:ff',
+                    'ethDst': z_vnf['hw_addr'] + '/ff:ff:ff:ff:ff:ff'
+                }
+            }
+
+            call_skeleton_l3_tapi = {
+                    "end-point": [
+                        {
+                            "direction": "BIDIRECTIONAL",
+                            "layer-protocol-name": "ETH",
+                            "local-id": "csep-1",
+                            "role": "SYMMETRIC",
+                            "service-interface-point": "/restconf/config/context/service-interface-point/00:00:00:60:dd:45:c3:73_7"
+                        },
+                        {
+                            "direction": "BIDIRECTIONAL",
+                            "layer-protocol-name": "ETH",
+                            "local-id": "csep-2",
+                            "role": "SYMMETRIC",
+                            "service-interface-point": "/restconf/config/context/service-interface-point/00:00:00:1e:67:a1:8d:45_7"
+                        }
+                    ],
+                    "requested-capacity": {
+                        "total-size": {
+                            "unit": "GBPS",
+                            "value": "1"
+                        }
+                    },
+                    "service-type": "POINT_TO_POINT_CONNECTIVITY",
+                    "uuid": "conn-service-1"
+                }
+
+            # calls.append(str(call_skeleton_l3))
+            LOG.debug('Q_net:{}'.format(call_skeleton_l3))
+            headers = {
+                'Content-type': 'application/json'
+            }
+            response = requests.post(nbi_base_call_url + call_skeleton_l3['callId'],
+                                     json=call_skeleton_l3,
+                                     headers=headers)
+            LOG.debug('R_net:{}'.format(response.content))
+            return response
+        else:
+            # TODO UPDATE REQUIRED, suggest PUT at an upper level?
+            LOG.warning('Call is not required since connection point is the same')
+            raise AttributeError
+
+    def remove_connectivity_service(self, uuid):
         LOG.info('Removing connectivity service')
-        return
+        nbi_base_call_url = 'http://{}:{}/restconf/config/calls/call/'.format(self.wim_ip, self.wim_port)
+        headers = {
+            'Accept': 'application/json'
+        }
+        response = requests.delete(nbi_base_call_url + str(uuid), headers=headers)
+        return response
 
 
 test = TapiWrapperEngine()
