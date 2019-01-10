@@ -73,7 +73,7 @@ class TapiWrapper(object):
         # Create the ledger that saves state
         self.functions = {}
 
-        self.thread_pool = pool.ThreadPoolExecutor(max_workers=1)
+        self.thread_pool = pool.ThreadPoolExecutor(max_workers=10)
 
         self.wtapi_ledger = {}
 
@@ -108,7 +108,7 @@ class TapiWrapper(object):
                 global quit_flag
                 LOG.debug('QuittingA')
                 quit_flag = True
-                self.thread_pool.shutdown()
+                self.thread_pool.shutdown(wait=False)
                 sys.exit()
 
     def run(self):
