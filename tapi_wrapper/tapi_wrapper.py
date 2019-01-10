@@ -111,7 +111,7 @@ class TapiWrapperEngine(object):
                 'uuid': uuid.uuid4(),
                 'node_id': '00:00:00:1b:21:7a:65:a8',
                 'edge_end_id': '3',
-                'connection_point': 'cp01'
+                'connection_point_id': 'cp01'
             },
             {
                 'type': 'cp',
@@ -119,7 +119,7 @@ class TapiWrapperEngine(object):
                 'uuid': uuid.uuid4(),
                 'node_id': '00:00:00:1e:67:a1:8f:c1',
                 'edge_end_id': '6',
-                'connection_point': 'cp21'
+                'connection_point_id': 'cp21'
             }
         ]
 
@@ -163,7 +163,7 @@ class TapiWrapperEngine(object):
         #     'port': '6',
         # }
 
-        if a_cp['ref'] != z_cp['ref']:
+        if a_cp['connection_point_id'] != z_cp['connection_point_id']:
             call_skeleton_l3 = {
                 "callId": str(uuid),
                 "contextId": "admin",
