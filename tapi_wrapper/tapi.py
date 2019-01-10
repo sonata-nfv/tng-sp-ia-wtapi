@@ -109,10 +109,11 @@ class TapiWrapper(object):
         """
         # go into infinity loop (we could do anything here)
         while True:
-            engine.TapiWrapperEngine.create_connectivity_service('1')
+            test_engine = engine.TapiWrapperEngine()
+            engine.TapiWrapperEngine.create_connectivity_service(test_engine,'1')
             LOG.info('Conn service created, sleeping')
             time.sleep(30)
-            engine.TapiWrapperEngine.remove_connectivity_service('1')
+            engine.TapiWrapperEngine.remove_connectivity_service(test_engine,'1')
             LOG.info('Conn service removed, sleeping')
             time.sleep(20)
 
