@@ -107,6 +107,7 @@ class TapiWrapper(object):
                 self.run()
             except KeyboardInterrupt:
                 self.quit_flag = True
+                self.thread_pool.shutdown()
 
     def run(self):
         """
