@@ -122,6 +122,7 @@ class TapiWrapper(object):
             LOG.info('Conn service removed, sleeping')
             time.sleep(20)
 
+        LOG.debug('Quitting')
         sys.exit()
 
     def declare_subscriptions(self):
