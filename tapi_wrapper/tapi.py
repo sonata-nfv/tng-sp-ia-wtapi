@@ -106,9 +106,10 @@ class TapiWrapper(object):
             try:
                 self.run()
             except KeyboardInterrupt:
+                LOG.debug('QuittingA')
                 self.quit_flag = True
                 self.thread_pool.shutdown()
-                LOG.debug('Quitting')
+
 
     def run(self):
         """
@@ -124,7 +125,7 @@ class TapiWrapper(object):
             LOG.info('Conn service removed, sleeping')
             time.sleep(20)
 
-        LOG.debug('Quitting')
+        LOG.debug('QuittingB')
         sys.exit()
 
     def declare_subscriptions(self):
