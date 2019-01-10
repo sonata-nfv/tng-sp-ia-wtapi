@@ -108,6 +108,7 @@ class TapiWrapper(object):
         To be overwritten by subclass
         """
         # go into infinity loop (we could do anything here)
+        self.virtual_links_create(1234)
         while True:
             # test_engine = engine.TapiWrapperEngine()
             # engine.TapiWrapperEngine.create_connectivity_service(test_engine,'cs-plugin-1')
