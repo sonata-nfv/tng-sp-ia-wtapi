@@ -111,10 +111,10 @@ class TapiWrapper(object):
             test_engine = engine.TapiWrapperEngine()
             engine.TapiWrapperEngine.create_connectivity_service(test_engine,'cs-plugin-1')
             LOG.info('Conn service created, sleeping')
-            time.sleep(30)
+            time.sleep(10)
             engine.TapiWrapperEngine.remove_connectivity_service(test_engine,'cs-plugin-1')
             LOG.info('Conn service removed, sleeping')
-            time.sleep(20)
+            time.sleep(5)
 
     def declare_subscriptions(self):
         """
@@ -609,6 +609,8 @@ def main():
     # logging.getLogger("amqp-storm").setLevel(logging.DEBUG)
     # create our function lifecycle manager
     tapi = TapiWrapper()
+    tapi.thread_pool.shutdown()
+    sys.exit()
 
 
 if __name__ == '__main__':
