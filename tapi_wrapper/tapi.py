@@ -82,6 +82,7 @@ class TapiWrapper(object):
         self.name = "%s.%s" % (name, self.__class__.__name__)
         self.version = version
         self.description = description
+        self.engine = engine.TapiWrapperEngine()
         #self.uuid = None  # uuid given by plugin manager on registration
         #self.state = None  # the state of this plugin READY/RUNNING/PAUSED/FAILED
 
@@ -266,6 +267,7 @@ class TapiWrapper(object):
         :return:
         """
         LOG.debug('vim_info_get reporting')
+        function = self.functions[func_id]
 
     def virtual_links_create(self, func_id):
         """
@@ -274,6 +276,11 @@ class TapiWrapper(object):
         :return:
         """
         LOG.debug('virtual_links_create reporting')
+        # Per each VL, create a CS
+        # Match each VNF with its CP
+        a_cp = self.engine.entities[3]
+        z_cp = self.engine.entities[4]
+        self.engine.create_connectivity_service('conn-plugin-1', a_cp, z_cp)
 
     def virtual_links_remove(self, func_id):
         """
@@ -282,6 +289,7 @@ class TapiWrapper(object):
         :return:
         """
         LOG.debug('virtual_links_remove reporting')
+        # Remove target VLs
 
     def wan_network_configure(self, ch, method, properties, payload):
         """

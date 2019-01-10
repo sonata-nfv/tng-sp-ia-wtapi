@@ -85,17 +85,55 @@ class TapiWrapperEngine(object):
         self.wim_port = os.getenv('WIM_PORT', 9881)
         # self.wim_port = os.getenv('WIM_PORT', 8182)
 
+        # Populate entities with TapiWrapper.vim_info_get
+        self.entities = [
+            {
+                'type':'vnf',
+                'name':'telco-RP',
+                'uuid':uuid.uuid4(),
+                'datacenter':'core',
+                'net_addr': '10.10.10.152',
+                'hw_addr': 'fc:16:3e:bf:04:d3',
+                'node': 'compute-1'
+            },
+            {
+                'type': 'vnf',
+                'name': 'telco-MS',
+                'uuid': uuid.uuid4(),
+                'datacenter': 'core',
+                'net_addr': '10.10.10.151',
+                'hw_addr': 'fc:16:3e:63:1b:04',
+                'node': 'compute-1'
+            },
+            {
+                'type': 'cp',
+                'name': 'client-1',
+                'uuid': uuid.uuid4(),
+                'node_id': '00:00:00:1b:21:7a:65:a8',
+                'edge_end_id': '3',
+                'connection_point': 'cp01'
+            },
+            {
+                'type': 'cp',
+                'name': 'compute-1',
+                'uuid': uuid.uuid4(),
+                'node_id': '00:00:00:1e:67:a1:8f:c1',
+                'edge_end_id': '6',
+                'connection_point': 'cp21'
+            }
+        ]
 
     def get_topology(self):
+        """
+        Gets topology from WIM to match nodes
+        :return:
+        """
         # nbi_topology_url = 'http://' + self.wim_ip + ':' + str(self.wim_port) + '/restconf/config/context/topology/0'
         tapi_topology_url = 'http://' + self.wim_ip + ':' + str(self.wim_port) + '/restconf/config/context/topology/0/'
         wim_topology = requests.get(tapi_topology_url)
         return wim_topology.json()
 
-    def get_nodes(self):
-        return
-
-    def create_connectivity_service(self, uuid):
+    def create_connectivity_service(self, uuid, a_cp, z_cp, a_vnf=None, z_vnf=None):
         """
         Call this function per virtual link
         :param uuid:
@@ -107,37 +145,37 @@ class TapiWrapperEngine(object):
         tapi_cs_url = 'http://{}:{}/restconf/config/context/connectivity-service/'.format(
            self.wim_ip, self.wim_port)
 
-        a_vnf = {
-            'hw_addr': '00:1f:c6:9c:36:67'
-        }
-        z_vnf = {
-            'hw_addr': 'fc:16:3e:f6:bb:c7'
-        }
+        # a_vnf = {
+        #     'hw_addr': '00:1f:c6:9c:36:67'
+        # }
+        # z_vnf = {
+        #     'hw_addr': 'fc:16:3e:f6:bb:c7'
+        # }
 
-        a_cp = {
-            'ref':'cp01',
-            'hw_addr': '00:00:00:1b:21:7a:65:a8',
-            'port': '3',
-        }
-        z_cp = {
-            'ref':'cp21',
-            'hw_addr': '00:00:00:1e:67:a1:8f:c1',
-            'port': '6',
-        }
+        # a_cp = {
+        #     'ref':'cp01',
+        #     'hw_addr': '00:00:00:1b:21:7a:65:a8',
+        #     'port': '3',
+        # }
+        # z_cp = {
+        #     'ref':'cp21',
+        #     'hw_addr': '00:00:00:1e:67:a1:8f:c1',
+        #     'port': '6',
+        # }
 
         if a_cp['ref'] != z_cp['ref']:
             call_skeleton_l3 = {
                 "callId": str(uuid),
                 "contextId": "admin",
                 "aEnd": {
-                    "nodeId": a_cp['hw_addr'],
-                    "edgeEndId": a_cp['port'],
-                    "endpointId": a_cp['hw_addr'] + '_' + a_cp['port']
+                    "nodeId": a_cp['node_id'],
+                    "edgeEndId": a_cp['edge_end_id'],
+                    "endpointId": a_cp['node_id'] + '_' + a_cp['edge_end_id']
                 },
                 "zEnd": {
-                    "nodeId": z_cp['hw_addr'],
-                    "edgeEndId": z_cp['port'],
-                    "endpointId": z_cp['hw_addr'] + '_' + z_cp['port']
+                    "nodeId": z_cp['node_id'],
+                    "edgeEndId":z_cp['edge_end_id'],
+                    "endpointId": z_cp['node_id'] + '_' + z_cp['edge_end_id']
                 },
                 "transportLayer": {
                     "layer": "ethernet",
@@ -147,8 +185,8 @@ class TapiWrapperEngine(object):
                     "reservedBandwidth": "50000"
                 },
                 "match": {
-                    'ethSrc': a_vnf['hw_addr'] + '/ff:ff:ff:ff:ff:ff',
-                    'ethDst': z_vnf['hw_addr'] + '/ff:ff:ff:ff:ff:ff'
+                    ('ethSrc' if a_vnf else None): (a_vnf['hw_addr'] + '/ff:ff:ff:ff:ff:ff' if a_vnf else None),
+                    ('ethDst' if z_vnf else None): (z_vnf['hw_addr'] + '/ff:ff:ff:ff:ff:ff' if z_vnf else None),
                 }
             }
 
@@ -159,14 +197,16 @@ class TapiWrapperEngine(object):
                             "layer-protocol-name": "ETH",
                             "local-id": "csep-1",
                             "role": "SYMMETRIC",
-                            "service-interface-point": "/restconf/config/context/service-interface-point/00:00:00:60:dd:45:c3:73_7"
+                            "service-interface-point": "/restconf/config/context/service-interface-point/" +
+                                                       a_cp['node_id'] + "_" + a_cp['edge_end_id']
                         },
                         {
                             "direction": "BIDIRECTIONAL",
                             "layer-protocol-name": "ETH",
                             "local-id": "csep-2",
                             "role": "SYMMETRIC",
-                            "service-interface-point": "/restconf/config/context/service-interface-point/00:00:00:1e:67:a1:8d:45_7"
+                            "service-interface-point": "/restconf/config/context/service-interface-point/" +
+                                                       z_cp['node_id'] + "_" + z_cp['edge_end_id']
                         }
                     ],
                     "requested-capacity": {
