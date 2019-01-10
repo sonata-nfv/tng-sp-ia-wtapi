@@ -187,7 +187,8 @@ class TapiWrapperEngine(object):
             # response = requests.post(tapi_cs_url + call_skeleton_l3['callId'],
             #                          json=call_skeleton_l3_tapi,
             #                          headers=headers)
-            response = requests.post(tapi_cs_url + uuid,
+            LOG.debug('Accesing {}'.format(tapi_cs_url + uuid + '/'))
+            response = requests.post(tapi_cs_url + uuid + '/',
                                      json=call_skeleton_l3_tapi,
                                      headers=headers)
             LOG.debug('R_net:{}'.format(response.content))
