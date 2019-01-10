@@ -47,6 +47,8 @@ ENV vnfr_collection vnfrs
 ENV nsr_collection nsrs
 
 ENV WIM_IP 10.1.1.54
+ENV WIM_PORT 9881
+#ENV WIM_PORT 8182
 
 
 

@@ -109,7 +109,12 @@ class TapiWrapper(object):
         """
         # go into infinity loop (we could do anything here)
         while True:
-            time.sleep(1)
+            engine.TapiWrapperEngine.create_connectivity_service('1')
+            LOG.info('Conn service created, sleeping')
+            time.sleep(30)
+            engine.TapiWrapperEngine.remove_connectivity_service('1')
+            LOG.info('Conn service removed, sleeping')
+            time.sleep(20)
 
     def declare_subscriptions(self):
         """
@@ -118,11 +123,11 @@ class TapiWrapper(object):
 
         # The topic on which configure requests are posted.
         self.manoconn.subscribe(self.wan_network_configure, topics.WAN_CONFIGURE)
-        LOG.info(topics.WAN_CONFIGURE + "configured")
+        LOG.info(topics.WAN_CONFIGURE + " configured")
 
         # The topic on which release requests are posted.
         self.manoconn.subscribe(self.wan_network_deconfigure, topics.WAN_DECONFIGURE)
-        LOG.info(topics.WAN_DECONFIGURE + "released (deconfigured)")
+        LOG.info(topics.WAN_DECONFIGURE + " released (deconfigured)")
 
 ##########################
 # TAPI Threading management
