@@ -47,8 +47,6 @@ logging.basicConfig(level=logging.DEBUG)
 LOG = logging.getLogger("tapi-wrapper:main")
 LOG.setLevel(logging.DEBUG)
 
-quit_flag = False
-
 class TapiWrapper(object):
     """
     This class implements the WIM Tapi wrapper.
@@ -102,21 +100,14 @@ class TapiWrapper(object):
 
         if start_running:
             LOG.info("Wrapper running...")
-            try:
-                self.run()
-            except KeyboardInterrupt:
-                global quit_flag
-                LOG.debug('QuittingA')
-                quit_flag = True
-                self.thread_pool.shutdown(wait=False)
-                sys.exit()
+            self.run()
 
     def run(self):
         """
         To be overwritten by subclass
         """
         # go into infinity loop (we could do anything here)
-        while not quit_flag:
+        while True:
             test_engine = engine.TapiWrapperEngine()
             engine.TapiWrapperEngine.create_connectivity_service(test_engine,'cs-plugin-1')
             LOG.info('Conn service created, sleeping')
