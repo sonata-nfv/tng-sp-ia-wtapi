@@ -47,6 +47,7 @@ logging.basicConfig(level=logging.DEBUG)
 LOG = logging.getLogger("tapi-wrapper:main")
 LOG.setLevel(logging.DEBUG)
 
+quit_flag = False
 
 class TapiWrapper(object):
     """
@@ -76,8 +77,6 @@ class TapiWrapper(object):
 
         self.wtapi_ledger = {}
 
-        self.quit_flag = False
-
         base = 'amqp://' + 'guest' + ':' + 'guest'
         broker = os.environ.get("broker_host").split("@")[-1].split("/")[0]
         self.url_base = base + '@' + broker + '/'
@@ -106,17 +105,18 @@ class TapiWrapper(object):
             try:
                 self.run()
             except KeyboardInterrupt:
+                global quit_flag
                 LOG.debug('QuittingA')
-                self.quit_flag = True
+                quit_flag = True
                 self.thread_pool.shutdown()
-
+                sys.exit()
 
     def run(self):
         """
         To be overwritten by subclass
         """
         # go into infinity loop (we could do anything here)
-        while not self.quit_flag:
+        while not quit_flag:
             test_engine = engine.TapiWrapperEngine()
             engine.TapiWrapperEngine.create_connectivity_service(test_engine,'cs-plugin-1')
             LOG.info('Conn service created, sleeping')
@@ -124,9 +124,6 @@ class TapiWrapper(object):
             engine.TapiWrapperEngine.remove_connectivity_service(test_engine,'cs-plugin-1')
             LOG.info('Conn service removed, sleeping')
             time.sleep(20)
-
-        LOG.debug('QuittingB')
-        sys.exit()
 
     def declare_subscriptions(self):
         """
