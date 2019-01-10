@@ -73,7 +73,7 @@ class TapiWrapper(object):
         # Create the ledger that saves state
         self.functions = {}
 
-        self.thread_pool = pool.ThreadPoolExecutor(max_workers=10)
+        self.thread_pool = pool.ThreadPoolExecutor(max_workers=1)
 
         self.wtapi_ledger = {}
 
