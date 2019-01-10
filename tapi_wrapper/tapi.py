@@ -279,8 +279,8 @@ class TapiWrapper(object):
         LOG.debug('virtual_links_create reporting')
         # Per each VL, create a CS
         # Match each VNF with its CP
-        a_cp = self.engine.entities[3]
-        z_cp = self.engine.entities[4]
+        a_cp = self.engine.entities[2]
+        z_cp = self.engine.entities[3]
         self.engine.create_connectivity_service('conn-plugin-1', a_cp, z_cp)
 
     def virtual_links_remove(self, func_id):
