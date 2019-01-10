@@ -101,7 +101,10 @@ class TapiWrapper(object):
 
         if start_running:
             LOG.info("Wrapper running...")
-            self.run()
+            try:
+                self.run()
+            except KeyboardInterrupt:
+                sys.exit()
 
     def run(self):
         """
@@ -124,11 +127,11 @@ class TapiWrapper(object):
 
         # The topic on which configure requests are posted.
         self.manoconn.subscribe(self.wan_network_configure, topics.WAN_CONFIGURE)
-        LOG.info(topics.WAN_CONFIGURE + " configured")
+        LOG.info("Subscription to {} created".format(topics.WAN_CONFIGURE))
 
         # The topic on which release requests are posted.
         self.manoconn.subscribe(self.wan_network_deconfigure, topics.WAN_DECONFIGURE)
-        LOG.info(topics.WAN_DECONFIGURE + " released (deconfigured)")
+        LOG.info("Subscription to {} created".format(topics.WAN_DECONFIGURE))
 
 ##########################
 # TAPI Threading management
