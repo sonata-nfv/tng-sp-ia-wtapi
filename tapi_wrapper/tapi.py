@@ -108,15 +108,14 @@ class TapiWrapper(object):
         """
         # go into infinity loop (we could do anything here)
         while True:
-            test_engine = engine.TapiWrapperEngine()
-            engine.TapiWrapperEngine.create_connectivity_service(test_engine,'cs-plugin-1')
-            LOG.info('Conn service created, sleeping')
-            time.sleep(10)
-            engine.TapiWrapperEngine.remove_connectivity_service(test_engine,'cs-plugin-1')
-            LOG.info('Conn service removed, sleeping')
-            time.sleep(5)
-            break
-        LOG.debug('Out of loop')
+            # test_engine = engine.TapiWrapperEngine()
+            # engine.TapiWrapperEngine.create_connectivity_service(test_engine,'cs-plugin-1')
+            # LOG.info('Conn service created, sleeping')
+            # time.sleep(10)
+            # engine.TapiWrapperEngine.remove_connectivity_service(test_engine,'cs-plugin-1')
+            # LOG.info('Conn service removed, sleeping')
+            time.sleep(1)
+        # LOG.debug('Out of loop')
 
     def declare_subscriptions(self):
         """
@@ -266,7 +265,7 @@ class TapiWrapper(object):
         :param func_id:
         :return:
         """
-        pass
+        LOG.debug('vim_info_get reporting')
 
     def virtual_links_create(self, func_id):
         """
@@ -274,7 +273,7 @@ class TapiWrapper(object):
         :param func_id:
         :return:
         """
-        pass
+        LOG.debug('virtual_links_create reporting')
 
     def virtual_links_remove(self, func_id):
         """
@@ -282,7 +281,7 @@ class TapiWrapper(object):
         :param func_id:
         :return:
         """
-        pass
+        LOG.debug('virtual_links_remove reporting')
 
     def wan_network_configure(self, ch, method, properties, payload):
         """
