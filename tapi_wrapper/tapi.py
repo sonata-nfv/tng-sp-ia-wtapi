@@ -115,6 +115,8 @@ class TapiWrapper(object):
             engine.TapiWrapperEngine.remove_connectivity_service(test_engine,'cs-plugin-1')
             LOG.info('Conn service removed, sleeping')
             time.sleep(5)
+            break
+        LOG.debug('Out of loop')
 
     def declare_subscriptions(self):
         """
