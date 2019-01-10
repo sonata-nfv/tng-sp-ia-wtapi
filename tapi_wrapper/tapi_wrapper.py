@@ -87,9 +87,9 @@ class TapiWrapperEngine(object):
 
 
     def get_topology(self):
-        nbi_topology_url = 'http://' + self.wim_ip + ':' + str(self.wim_port) + '/restconf/config/context/topology/0'
-        # tapi_topology_url = 'http://' + self.wim_ip + ':' + str(self.wim_port) + '/restconf/config/context/topology/0/'
-        wim_topology = requests.get(nbi_topology_url)
+        # nbi_topology_url = 'http://' + self.wim_ip + ':' + str(self.wim_port) + '/restconf/config/context/topology/0'
+        tapi_topology_url = 'http://' + self.wim_ip + ':' + str(self.wim_port) + '/restconf/config/context/topology/0/'
+        wim_topology = requests.get(tapi_topology_url)
         return wim_topology.json()
 
     def get_nodes(self):
@@ -103,9 +103,9 @@ class TapiWrapperEngine(object):
         """
         LOG.info('Creating connectivity service')
 
-        nbi_base_call_url = 'http://{}:{}/restconf/config/calls/call/'.format(self.wim_ip, self.wim_port)
-        # tapi_cs_url = 'http://{}:{}/restconf/config/context/connectivity-service/'.format(
-        #    self.wim_ip, self.wim_port)
+        # nbi_base_call_url = 'http://{}:{}/restconf/config/calls/call/'.format(self.wim_ip, self.wim_port)
+        tapi_cs_url = 'http://{}:{}/restconf/config/context/connectivity-service/'.format(
+           self.wim_ip, self.wim_port)
 
         a_vnf = {
             'hw_addr': '00:1f:c6:9c:36:67'
@@ -176,7 +176,7 @@ class TapiWrapperEngine(object):
                         }
                     },
                     "service-type": "POINT_TO_POINT_CONNECTIVITY",
-                    "uuid": "conn-service-1"
+                    "uuid": uuid
                 }
 
             # calls.append(str(call_skeleton_l3))
@@ -184,8 +184,11 @@ class TapiWrapperEngine(object):
             headers = {
                 'Content-type': 'application/json'
             }
-            response = requests.post(nbi_base_call_url + call_skeleton_l3['callId'],
-                                     json=call_skeleton_l3,
+            # response = requests.post(tapi_cs_url + call_skeleton_l3['callId'],
+            #                          json=call_skeleton_l3_tapi,
+            #                          headers=headers)
+            response = requests.post(tapi_cs_url + uuid,
+                                     json=call_skeleton_l3_tapi,
                                      headers=headers)
             LOG.debug('R_net:{}'.format(response.content))
             return response
@@ -196,11 +199,13 @@ class TapiWrapperEngine(object):
 
     def remove_connectivity_service(self, uuid):
         LOG.info('Removing connectivity service')
-        nbi_base_call_url = 'http://{}:{}/restconf/config/calls/call/'.format(self.wim_ip, self.wim_port)
+        # nbi_base_call_url = 'http://{}:{}/restconf/config/calls/call/'.format(self.wim_ip, self.wim_port)
+        tapi_cs_url = 'http://{}:{}/restconf/config/context/connectivity-service/'.format(
+            self.wim_ip, self.wim_port)
         headers = {
             'Accept': 'application/json'
         }
-        response = requests.delete(nbi_base_call_url + str(uuid), headers=headers)
+        response = requests.delete(tapi_cs_url + str(uuid), headers=headers)
         return response
 
 
