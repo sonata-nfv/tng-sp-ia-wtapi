@@ -46,10 +46,6 @@ WIM_REMOVE = 'infrastructure.wtapi.management.wan.remove' #Remove WIM
 WAN_CONFIGURE = 'infrastructure.wtapi.service.wan.configure' #Configure WAN for service instance
 WAN_DECONFIGURE = 'infrastructure.wtapi.service.wan.deconfigure' #Deconfigure WAN for service instance
 
-
-
-#
-
 # Catalogue urls
 cat_path = os.environ.get("cat_path").strip("/")
 vnfd_ext = os.environ.get("vnfd_collection").strip("/")
