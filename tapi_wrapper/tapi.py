@@ -79,7 +79,7 @@ class TapiWrapper(object):
         broker = os.environ.get("broker_host").split("@")[-1].split("/")[0]
         self.url_base = base + '@' + broker + '/'
 
-        self.name = "%s.%s" % (name, self.__class__.__name__)
+        self.name = "{}.{}".format(name, self.__class__.__name__)
         self.version = version
         self.description = description
         self.engine = engine.TapiWrapperEngine()
@@ -91,11 +91,12 @@ class TapiWrapper(object):
         while True:
             try:
                 self.manoconn = messaging.ManoBrokerRequestResponseConnection(self.name)
+                LOG.debug("Wrapper is connected to broker.")
                 break
             except:
                 time.sleep(1)
         # register subscriptions
-        LOG.info("Wrapper is connected to broker.")
+
 
         self.declare_subscriptions()
 
@@ -108,7 +109,7 @@ class TapiWrapper(object):
         To be overwritten by subclass
         """
         # go into infinity loop (we could do anything here)
-        self.virtual_links_create(1234)
+        # self.virtual_links_create(1234)
         while True:
             # test_engine = engine.TapiWrapperEngine()
             # engine.TapiWrapperEngine.create_connectivity_service(test_engine,'cs-plugin-1')
@@ -116,7 +117,7 @@ class TapiWrapper(object):
             # time.sleep(10)
             # engine.TapiWrapperEngine.remove_connectivity_service(test_engine,'cs-plugin-1')
             # LOG.info('Conn service removed, sleeping')
-            time.sleep(1)
+            time.sleep(0.01)
         # LOG.debug('Out of loop')
 
     def declare_subscriptions(self):
@@ -261,7 +262,7 @@ class TapiWrapper(object):
     # Callbacks
     #############################
 
-    def vim_info_get(self, func_id):
+    def vim_info_get(self, func_id, uuid, vim_db):
         """
         This function retrieves info from deployed vnfs in the vim to map them into topology ports
         :param func_id:
@@ -269,6 +270,7 @@ class TapiWrapper(object):
         """
         LOG.debug('vim_info_get reporting')
         function = self.functions[func_id]
+        return list(filter(lambda x: x['uuid'] == uuid, vim_db))
 
     def virtual_links_create(self, func_id):
         """
@@ -281,6 +283,8 @@ class TapiWrapper(object):
         # Match each VNF with its CP
         a_cp = self.engine.entities[2]
         z_cp = self.engine.entities[3]
+        self.engine.submit()
+        self.engine.tasks.append()
         self.engine.create_connectivity_service('conn-plugin-1', a_cp, z_cp)
 
     def virtual_links_remove(self, func_id):
@@ -316,10 +320,21 @@ class TapiWrapper(object):
             return
 
         LOG.info("WAN configure request received.")
+        LOG.debug('Parameters:channel:{},method:{},properties:{},payload:{}'.format(ch, method, properties, payload))
         message = yaml.load(payload)
 
         # Extract the correlation id
         corr_id = properties.correlation_id
+
+        if corr_id is None:
+            error = 'No correlation id provided in header of request'
+            send_error_response(error, None)
+            return
+
+        if not isinstance(message, dict):
+            error = 'Payload is not a dictionary'
+            send_error_response(error, None)
+            return
 
         func_id = message['id']
 
@@ -329,7 +344,8 @@ class TapiWrapper(object):
         # Schedule the tasks that the Wrapper should do for this request.
         add_schedule =[
             'vim_info_get',
-            'virtual_links_create'
+            'virtual_links_create',
+            'respond_to_request'
         ]
 
         LOG.info("Functions " + str(self.functions))
@@ -339,7 +355,7 @@ class TapiWrapper(object):
         msg = ": New instantiation request received. Instantiation started."
         LOG.info("Function " + func_id + msg)
         # Start the chain of tasks
-        self.start_next_task(func_id)
+        # self.start_next_task(func_id)
 
         return self.functions[func_id]['schedule']
 
@@ -366,11 +382,11 @@ class TapiWrapper(object):
             return
 
         LOG.info("WAN deconfigure request received.")
+        LOG.debug('Parameters:channel:{},method:{},properties:{},payload:{}'.format(ch, method, properties, payload))
+
         message = yaml.load(payload)
 
-        # Check if payload is ok.
-
-        # Extract the correlation id
+        # Check if payload and properties are ok.
         corr_id = properties.correlation_id
 
         if corr_id is None:
@@ -383,42 +399,22 @@ class TapiWrapper(object):
             send_error_response(error, None)
             return
 
-        if 'cnf_id' not in message.keys():
-            error = 'cnf_uuid key not provided'
-            send_error_response(error, None)
-            return
+        func_id = message['id']
 
-        func_id = message['cnf_id']
-
-        if 'serv_id' not in message.keys():
-            error = 'serv_id key not provided'
-            send_error_response(error, func_id)
-
-        if 'vim_id' not in message.keys():
-            error = 'vim_id key not provided'
-            send_error_response(error, func_id)
-
-        cnf = self.functions[func_id]
-        if cnf['error'] is not None:
-            send_error_response(cnf['error'], func_id)
-
-        if cnf['vnfr']['status'] == 'terminated':
-            error = 'CNF is already terminated'
-            send_error_response(error, func_id)
+        self.add_function_to_ledger(message, corr_id, func_id, topics.WAN_DECONFIGURE)
 
         # Schedule the tasks that the K8S Wrapper should do for this request.
         add_schedule = [
-            'virtual_links_remove'
+            'virtual_links_remove',
+            'respond_to_request'
         ]
-        # add_schedule.append('remove_cnf')
-        # add_schedule.append('respond_to_request')
 
         self.functions[func_id]['schedule'].extend(add_schedule)
 
         msg = ": New kill request received."
         LOG.info("Function " + func_id + msg)
         # Start the chain of tasks
-        self.start_next_task(func_id)
+        # self.start_next_task(func_id)
 
         return self.functions[func_id]['schedule']
 
