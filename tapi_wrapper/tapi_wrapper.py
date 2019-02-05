@@ -63,6 +63,19 @@ class TapiWrapperEngine(object):
         self.thrd_pool = pool.ThreadPoolExecutor(max_workers=100)
         # Track the workers
         self.tasks = []
+        # self.thrd_pool.submit()
+        # TODO: Create FSM-SSM static flow
+
+    def submit(self, task, args):
+        """
+        Wrapper for submitting a task to the Executor (self.thrd_pool)
+        :param task:
+        :param args:
+        :return:
+        """
+        self.tasks.append(task)
+        if self.thrd_pool:
+            self.thrd_pool.submit(task, args)
 
     def load_config(self):
         """
@@ -132,6 +145,106 @@ class TapiWrapperEngine(object):
         tapi_topology_url = 'http://' + self.wim_ip + ':' + str(self.wim_port) + '/restconf/config/context/topology/0/'
         wim_topology = requests.get(tapi_topology_url)
         return wim_topology.json()
+
+    def generate_call_from_nap_pair(index, ingress_nap, egress_nap, ingress_ep, egress_ep,
+                                    direction='unidir', layer='ethernet', reserved_BW=50000):
+        """
+
+        :param index:
+        :param ingress_nap:
+        :param egress_nap:
+        :param ingress_ep:
+        :param egress_ep:
+        :param direction:
+        :param layer:
+        :param reserved_BW:
+        :return call:
+        """
+        a_end = ingress_ep.split('_')
+        z_end = egress_ep.split('_')
+        if layer == 'ethernet' or (layer == 'mpls' and direction == 'unidir'):
+            call = {
+                "callId": str(index),
+                "contextId": "admin",
+                "aEnd": {
+                    "nodeId": a_end[0],
+                    "edgeEndId": a_end[1],
+                    "endpointId": ingress_ep
+                },
+                "zEnd": {
+                    "nodeId": z_end[0],
+                    "edgeEndId": z_end[1],
+                    "endpointId": egress_ep
+                },
+                "transportLayer": {
+                    "layer": layer,
+                    "direction": direction
+                },
+                "trafficParams": {
+                    "reservedBandwidth": str(reserved_BW)
+                },
+                "match": {
+                    'ipv4Src': ingress_nap,
+                    'ipv4Dst': egress_nap
+                }
+            }
+        elif layer == 'arp':
+            call = {
+                "callId": str(index),
+                "contextId": "admin",
+                "aEnd": {
+                    "nodeId": a_end[0],
+                    "edgeEndId": a_end[1],
+                    "endpointId": ingress_ep
+                },
+                "zEnd": {
+                    "nodeId": z_end[0],
+                    "edgeEndId": z_end[1],
+                    "endpointId": egress_ep
+                },
+                "transportLayer": {
+                    "layer": 'ethernet',
+                    "direction": direction
+                },
+                "trafficParams": {
+                    "reservedBandwidth": str(reserved_BW)
+                },
+                "match": {
+                    'ethType': 2054,
+                    'arpSpa': ingress_nap,
+                    'arpTpa': egress_nap
+                }
+            }
+        elif layer == 'mpls_arp' and direction == 'unidir':
+            call = {
+                "callId": str(index),
+                "contextId": "admin",
+                "aEnd": {
+                    "nodeId": a_end[0],
+                    "edgeEndId": a_end[1],
+                    "endpointId": ingress_ep
+                },
+                "zEnd": {
+                    "nodeId": z_end[0],
+                    "edgeEndId": z_end[1],
+                    "endpointId": egress_ep
+                },
+                "transportLayer": {
+                    "layer": 'mpls',
+                    "direction": direction
+                },
+                "trafficParams": {
+                    "reservedBandwidth": str(reserved_BW)
+                },
+                "match": {
+                    'ethType': 2054,
+                    'arpSpa': ingress_nap,
+                    'arpTpa': egress_nap
+                }
+            }
+        else:
+            raise AttributeError
+        return call
 
     def create_connectivity_service(self, uuid, a_cp, z_cp, a_vnf=None, z_vnf=None):
         """
