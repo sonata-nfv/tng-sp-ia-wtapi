@@ -26,7 +26,7 @@ acknowledge the contributions of their colleagues of the 5GTANGO
 partner consortium (www.5gtango.eu).
 """
 """
-This is SONATA's function lifecycle management plugin
+This is SONATA's TAPI WIM management plugin
 """
 
 import logging
@@ -49,6 +49,9 @@ MAX_DEPLOYMENT_TIME = 5
 
 
 class TapiWrapperEngine(object):
+    """
+    Interface class with WIM's T-API
+    """
 
     def __init__(self, **kwargs):
         """
@@ -60,22 +63,12 @@ class TapiWrapperEngine(object):
         self.load_config()
 
         # Threading workers
-        self.thrd_pool = pool.ThreadPoolExecutor(max_workers=100)
+        # self.thrd_pool = pool.ThreadPoolExecutor(max_workers=100)
         # Track the workers
         self.tasks = []
         # self.thrd_pool.submit()
+        self.index = 1000
         # TODO: Create FSM-SSM static flow
-
-    def submit(self, task, args):
-        """
-        Wrapper for submitting a task to the Executor (self.thrd_pool)
-        :param task:
-        :param args:
-        :return:
-        """
-        self.tasks.append(task)
-        if self.thrd_pool:
-            self.thrd_pool.submit(task, args)
 
     def load_config(self):
         """
@@ -97,44 +90,116 @@ class TapiWrapperEngine(object):
         self.wim_ip = os.getenv('WIM_IP', '10.1.1.54')
         self.wim_port = os.getenv('WIM_PORT', 9881)
         # self.wim_port = os.getenv('WIM_PORT', 8182)
-
-        # Populate entities with TapiWrapper.vim_info_get
-        self.entities = [
-            {
-                'type':'vnf',
-                'name':'telco-RP',
-                'uuid':uuid.uuid4(),
-                'datacenter':'core',
-                'net_addr': '10.10.10.152',
-                'hw_addr': 'fc:16:3e:bf:04:d3',
-                'node': 'compute-1'
+        self.sip_list = [  # Get this list from ABNO NBI
+        {
+            'uuid': '7be67c30-2bf9-4545-825e-81266cfff645',
+            'name': {
+                'value-name':'bcn-1',
+                'value': '00:00:00:1b:21:7a:65:a8_3'
             },
-            {
-                'type': 'vnf',
-                'name': 'telco-MS',
-                'uuid': uuid.uuid4(),
-                'datacenter': 'core',
-                'net_addr': '10.10.10.151',
-                'hw_addr': 'fc:16:3e:63:1b:04',
-                'node': 'compute-1'
+            'administrative-state': 'UNLOCKED',
+            'operational-state': 'ENABLED',
+            'lifecycle-state': 'INSTALLED',
+            'total-potential-capacity': {
+                'total-size': {'value': 1000, 'unit': 'MBPS'},
+                'bandwidth-profile': None
             },
-            {
-                'type': 'cp',
-                'name': 'client-1',
-                'uuid': uuid.uuid4(),
-                'node_id': '00:00:00:1b:21:7a:65:a8',
-                'edge_end_id': '3',
-                'connection_point_id': 'cp01'
-            },
-            {
-                'type': 'cp',
-                'name': 'compute-1',
-                'uuid': uuid.uuid4(),
-                'node_id': '00:00:00:1e:67:a1:8f:c1',
-                'edge_end_id': '6',
-                'connection_point_id': 'cp21'
+            'available-capacity': {
+                'total-size': {'value': 1000, 'unit': 'MBPS'},
+                'bandwidth-profile': None
             }
-        ]
+        },
+        {
+            'uuid': '44c03813-0e33-4f50-88d2-3ffd6804dd11',
+            'name': {
+                'value-name':'core-datacenter',
+                'value': '00:00:00:1e:67:a1:8f:c1_7'
+            },
+            'administrative-state': 'UNLOCKED',
+            'operational-state': 'ENABLED',
+            'lifecycle-state': 'INSTALLED',
+            'total-potential-capacity': {
+                'total-size': {'value': 1000, 'unit': 'MBPS'},
+                'bandwidth-profile': None
+            },
+            'available-capacity': {
+                'total-size': {'value': 1000, 'unit': 'MBPS'},
+                'bandwidth-profile': None
+            }
+        },
+        {
+            'uuid': 'feebec07-e6b2-4636-98fa-8e87d74d2b43',
+            'name': {
+                'value-name': 'edge-datacenter',
+                'value': '00:00:00:1b:21:7a:65:a8_9'
+            },
+            'administrative-state': 'UNLOCKED',
+            'operational-state': 'ENABLED',
+            'lifecycle-state': 'INSTALLED',
+            'total-potential-capacity': {
+                'total-size': {'value': 1000, 'unit': 'MBPS'},
+                'bandwidth-profile': None
+            },
+            'available-capacity': {
+                'total-size': {'value': 1000, 'unit': 'MBPS'},
+                'bandwidth-profile': None
+            }
+        },
+        {
+            'uuid': 'd9f54721-d468-4cf3-9884-acb818842c05',
+            'name': {
+                'value-name': 'bcn-2',
+                'value': '00:00:00:60:dd:45:c3:73_3'
+            },
+            'administrative-state': 'UNLOCKED',
+            'operational-state': 'ENABLED',
+            'lifecycle-state': 'INSTALLED',
+            'total-potential-capacity': {
+                'total-size': {'value': 1000, 'unit': 'MBPS'},
+                'bandwidth-profile': None
+            },
+            'available-capacity': {
+                'total-size': {'value': 1000, 'unit': 'MBPS'},
+                'bandwidth-profile': None
+            }
+        },
+        {
+            'uuid': 'b0952891-4ae9-4a0b-81af-9dc320bf7809',
+            'name': {
+                'value-name': 'bcn-3',
+                'value': '00:00:00:1b:21:7a:65:a8_4'
+            },
+            'administrative-state': 'UNLOCKED',
+            'operational-state': 'ENABLED',
+            'lifecycle-state': 'INSTALLED',
+            'total-potential-capacity': {
+                'total-size': {'value': 1000, 'unit': 'MBPS'},
+                'bandwidth-profile': None
+            },
+            'available-capacity': {
+                'total-size': {'value': 1000, 'unit': 'MBPS'},
+                'bandwidth-profile': None
+            }
+        },
+        {
+            'uuid': '7eb946f9-9f00-4f32-a604-1b4163f11097',
+            'name': {
+                'value-name': 'bcn-4',
+                'value': '00:00:00:60:dd:45:c3:73_4'
+            },
+            'administrative-state': 'UNLOCKED',
+            'operational-state': 'ENABLED',
+            'lifecycle-state': 'INSTALLED',
+            'total-potential-capacity': {
+                'total-size': {'value': 1000, 'unit': 'MBPS'},
+                'bandwidth-profile': None
+            },
+            'available-capacity': {
+                'total-size': {'value': 1000, 'unit': 'MBPS'},
+                'bandwidth-profile': None
+            }
+        },
+    ]
 
     def get_topology(self):
         """
@@ -146,8 +211,8 @@ class TapiWrapperEngine(object):
         wim_topology = requests.get(tapi_topology_url)
         return wim_topology.json()
 
-    def generate_call_from_nap_pair(index, ingress_nap, egress_nap, ingress_ep, egress_ep,
-                                    direction='unidir', layer='ethernet', reserved_BW=50000):
+    def generate_call_from_nap_pair(self, ingress_nap, egress_nap, ingress_ep, egress_ep,
+                                    direction='unidir', layer='ethernet', reserved_bw=50000):
         """
 
         :param index:
@@ -157,14 +222,15 @@ class TapiWrapperEngine(object):
         :param egress_ep:
         :param direction:
         :param layer:
-        :param reserved_BW:
+        :param reserved_bw:
         :return call:
         """
+
         a_end = ingress_ep.split('_')
         z_end = egress_ep.split('_')
         if layer == 'ethernet' or (layer == 'mpls' and direction == 'unidir'):
             call = {
-                "callId": str(index),
+                "callId": str(self.index),
                 "contextId": "admin",
                 "aEnd": {
                     "nodeId": a_end[0],
@@ -181,7 +247,7 @@ class TapiWrapperEngine(object):
                     "direction": direction
                 },
                 "trafficParams": {
-                    "reservedBandwidth": str(reserved_BW)
+                    "reservedBandwidth": str(reserved_bw)
                 },
                 "match": {
                     'ipv4Src': ingress_nap,
@@ -190,7 +256,7 @@ class TapiWrapperEngine(object):
             }
         elif layer == 'arp':
             call = {
-                "callId": str(index),
+                "callId": str(self.index),
                 "contextId": "admin",
                 "aEnd": {
                     "nodeId": a_end[0],
@@ -207,7 +273,7 @@ class TapiWrapperEngine(object):
                     "direction": direction
                 },
                 "trafficParams": {
-                    "reservedBandwidth": str(reserved_BW)
+                    "reservedBandwidth": str(reserved_bw)
                 },
                 "match": {
                     'ethType': 2054,
@@ -217,7 +283,7 @@ class TapiWrapperEngine(object):
             }
         elif layer == 'mpls_arp' and direction == 'unidir':
             call = {
-                "callId": str(index),
+                "callId": str(self.index),
                 "contextId": "admin",
                 "aEnd": {
                     "nodeId": a_end[0],
@@ -234,7 +300,7 @@ class TapiWrapperEngine(object):
                     "direction": direction
                 },
                 "trafficParams": {
-                    "reservedBandwidth": str(reserved_BW)
+                    "reservedBandwidth": str(reserved_bw)
                 },
                 "match": {
                     'ethType': 2054,
@@ -244,112 +310,25 @@ class TapiWrapperEngine(object):
             }
         else:
             raise AttributeError
+
+        self.index += 1
         return call
 
-    def create_connectivity_service(self, uuid, a_cp, z_cp, a_vnf=None, z_vnf=None):
+    def create_connectivity_service(self, call):
         """
         Call this function per virtual link
-        :param uuid:
+        :param call:
         :return:
         """
-        LOG.info('Creating connectivity service')
+        LOG.debug('TapiWrapper: Creating connectivity service {}'.format(call))
 
-        # nbi_base_call_url = 'http://{}:{}/restconf/config/calls/call/'.format(self.wim_ip, self.wim_port)
-        tapi_cs_url = 'http://{}:{}/restconf/config/context/connectivity-service/'.format(
-           self.wim_ip, self.wim_port)
+        nbi_base_call_url = 'http://{}:{}/restconf/config/calls/call/'.format(self.wim_ip, self.wim_port)
+        # tapi_cs_url = 'http://{}:{}/restconf/config/context/connectivity-service/'.format(
+        #    self.wim_ip, self.wim_port)
+        headers = {'Content-type': 'application/json'}
 
-        # a_vnf = {
-        #     'hw_addr': '00:1f:c6:9c:36:67'
-        # }
-        # z_vnf = {
-        #     'hw_addr': 'fc:16:3e:f6:bb:c7'
-        # }
-
-        # a_cp = {
-        #     'ref':'cp01',
-        #     'hw_addr': '00:00:00:1b:21:7a:65:a8',
-        #     'port': '3',
-        # }
-        # z_cp = {
-        #     'ref':'cp21',
-        #     'hw_addr': '00:00:00:1e:67:a1:8f:c1',
-        #     'port': '6',
-        # }
-
-        if a_cp['connection_point_id'] != z_cp['connection_point_id']:
-            call_skeleton_l3 = {
-                "callId": str(uuid),
-                "contextId": "admin",
-                "aEnd": {
-                    "nodeId": a_cp['node_id'],
-                    "edgeEndId": a_cp['edge_end_id'],
-                    "endpointId": a_cp['node_id'] + '_' + a_cp['edge_end_id']
-                },
-                "zEnd": {
-                    "nodeId": z_cp['node_id'],
-                    "edgeEndId":z_cp['edge_end_id'],
-                    "endpointId": z_cp['node_id'] + '_' + z_cp['edge_end_id']
-                },
-                "transportLayer": {
-                    "layer": "ethernet",
-                    "direction": "bidir"
-                },
-                "trafficParams": {
-                    "reservedBandwidth": "50000"
-                },
-                "match": {
-                    ('ethSrc' if a_vnf else None): (a_vnf['hw_addr'] + '/ff:ff:ff:ff:ff:ff' if a_vnf else None),
-                    ('ethDst' if z_vnf else None): (z_vnf['hw_addr'] + '/ff:ff:ff:ff:ff:ff' if z_vnf else None),
-                }
-            }
-
-            call_skeleton_l3_tapi = {
-                    "end-point": [
-                        {
-                            "direction": "BIDIRECTIONAL",
-                            "layer-protocol-name": "ETH",
-                            "local-id": "csep-1",
-                            "role": "SYMMETRIC",
-                            "service-interface-point": "/restconf/config/context/service-interface-point/" +
-                                                       a_cp['node_id'] + "_" + a_cp['edge_end_id']
-                        },
-                        {
-                            "direction": "BIDIRECTIONAL",
-                            "layer-protocol-name": "ETH",
-                            "local-id": "csep-2",
-                            "role": "SYMMETRIC",
-                            "service-interface-point": "/restconf/config/context/service-interface-point/" +
-                                                       z_cp['node_id'] + "_" + z_cp['edge_end_id']
-                        }
-                    ],
-                    "requested-capacity": {
-                        "total-size": {
-                            "unit": "GBPS",
-                            "value": "1"
-                        }
-                    },
-                    "service-type": "POINT_TO_POINT_CONNECTIVITY",
-                    "uuid": uuid
-                }
-
-            # calls.append(str(call_skeleton_l3))
-            LOG.debug('Q_net:{}'.format(call_skeleton_l3))
-            headers = {
-                'Content-type': 'application/json'
-            }
-            # response = requests.post(tapi_cs_url + call_skeleton_l3['callId'],
-            #                          json=call_skeleton_l3_tapi,
-            #                          headers=headers)
-            LOG.debug('Accesing {}'.format(tapi_cs_url + uuid + '/'))
-            response = requests.post(tapi_cs_url + uuid + '/',
-                                     json=call_skeleton_l3_tapi,
-                                     headers=headers)
-            LOG.debug('R_net:{}'.format(response.content))
-            return response
-        else:
-            # TODO UPDATE REQUIRED, suggest PUT at an upper level?
-            LOG.warning('Call is not required since connection point is the same')
-            raise AttributeError
+        response = requests.post(nbi_base_call_url + call['callId'], json=call, headers=headers)
+        return response
 
     def remove_connectivity_service(self, uuid):
         LOG.info('Removing connectivity service')
@@ -362,5 +341,8 @@ class TapiWrapperEngine(object):
         response = requests.delete(tapi_cs_url + str(uuid), headers=headers)
         return response
 
-
+    def get_sip_by_name(self, name):
+        # TODO Get it from WIM
+        # self.get_sip_list(self.server_url)
+        return list(filter(lambda x: x['name']['value-name'] == name, self.sip_list))
 test = TapiWrapperEngine()
