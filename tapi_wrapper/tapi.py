@@ -69,11 +69,9 @@ class TapiWrapper(object):
         """
 
         # Create the ledger that saves state
-        self.functions = {}
+        self.wtapi_ledger = {}
 
         self.thread_pool = pool.ThreadPoolExecutor(max_workers=10)
-
-        self.wtapi_ledger = {}
 
         base = 'amqp://' + 'guest' + ':' + 'guest'
         broker = os.environ.get("broker_host").split("@")[-1].split("/")[0]
@@ -86,6 +84,11 @@ class TapiWrapper(object):
         #self.uuid = None  # uuid given by plugin manager on registration
         #self.state = None  # the state of this plugin READY/RUNNING/PAUSED/FAILED
 
+        self.vim_map = [   # Get this mappings from vim registry
+            {'uuid': '9aea3a58-31e6-4c6a-a699-866399d651c0', 'location': 'core-datacenter'},
+            {'uuid': '94c261b4-357e-48ec-bb32-d1cb3da993b0', 'location': 'edge-datacenter'}
+        ]
+
         LOG.info("Starting IA Wrapper: {} ...".format(self.name))
         # create and initialize broker connection
         while True:
@@ -94,9 +97,8 @@ class TapiWrapper(object):
                 LOG.debug("Wrapper is connected to broker.")
                 break
             except:
-                time.sleep(1)
+                time.sleep(0.1)
         # register subscriptions
-
 
         self.declare_subscriptions()
 
@@ -137,17 +139,13 @@ class TapiWrapper(object):
 # TAPI Threading management
 ##########################
 
-    def get_ledger(self, func_id):
-        return self.functions[func_id]
+    def get_connectivity_service(self, cs_id):
+        return self.wtapi_ledger[cs_id]
 
-    def get_functions(self):
-        return self.functions
+    def get_services(self):
+        return self.wtapi_ledger
 
-    def set_functions(self, functions_dict):
-        self.functions = functions_dict
-        return
-
-    def start_next_task(self, func_id):
+    def start_next_task(self, cs_id):
         """
         This method makes sure that the next task in the schedule is started
         when a task is finished, or when the first task should begin.
@@ -156,94 +154,46 @@ class TapiWrapper(object):
         """
 
         # If the kill field is active, the chain is killed
-        if self.functions[func_id]['kill_chain']:
-            LOG.info("Function " + func_id + ": Killing running workflow")
+        if self.wtapi_ledger[cs_id]['kill_service']:
+            self.wtapi_ledger[cs_id]['status'] = 'KILLING'
+            LOG.info("Network Service " + cs_id + ": Killing running workflow")
             # TODO: delete records, stop (destroy namespace)
             # TODO: Or, jump into the kill workflow.
-            del self.functions[func_id]
+            del self.wtapi_ledger[cs_id]
             return
 
         # Select the next task, only if task list is not empty
-        if len(self.functions[func_id]['schedule']) > 0:
+        if len(self.wtapi_ledger[cs_id]['schedule']) > 0:
 
-            # share state with other K8S Wrappers
-            next_task = getattr(self,
-                                self.functions[func_id]['schedule'].pop(0))
+            # share state with other WTAPI Wrappers (pop)
+            next_task = getattr(self, self.wtapi_ledger[cs_id]['schedule'].pop(0))
 
-            # Push the next task to the threadingpool
-            task = self.thread_pool.submit(next_task, func_id)
+            # Push the next task to the thread_pool
+            task = self.thread_pool.submit(next_task, (cs_id,))
 
             # Log if a task fails
             if task.exception() is not None:
-                print(task.result())
+                LOG.debug(task.result())
 
-            # When the task is done, the next task should be started if no flag
-            # is set to pause the chain.
-            if self.functions[func_id]['pause_chain']:
-                self.functions[func_id]['pause_chain'] = False
             else:
-                self.start_next_task(func_id)
+                self.start_next_task(cs_id)
         else:
-            del self.functions[func_id]
-
-    def add_function_to_ledger(self, payload, corr_id, func_id, topic):
-        """
-        This method adds new functions with their specifics to the ledger,
-        so other functions can use this information.
-
-        :param payload: the payload of the received message
-        :param corr_id: the correlation id of the received message
-        :param func_id: the instance uuid of the function defined by SLM.
-        """
-
-        # Add the function to the ledger and add instance ids
-        self.functions[func_id] = {}
-        self.functions[func_id]['vnfd'] = payload['vnfd']
-        self.functions[func_id]['id'] = func_id
-
-        # Add the topic of the call
-        self.functions[func_id]['topic'] = topic
-
-        # Add to correlation id to the ledger
-        self.functions[func_id]['orig_corr_id'] = corr_id
-
-        # Add payload to the ledger
-        self.functions[func_id]['payload'] = payload
-
-        # Add the service uuid that this function belongs to
-        self.functions[func_id]['service_instance_id'] = payload['service_instance_id']
-
-        # Add the VIM uuid
-        self.functions[func_id]['vim_uuid'] = payload['vim_uuid']
-
-        # Create the function schedule
-        self.functions[func_id]['schedule'] = []
-
-        # Create the chain pause and kill flag
-
-        self.functions[func_id]['pause_chain'] = False
-        self.functions[func_id]['kill_chain'] = False
-
-        self.functions[func_id]['act_corr_id'] = None
-        self.functions[func_id]['message'] = None
-
-        # Add error field
-        self.functions[func_id]['error'] = None
-
-        return func_id
+            # del self.wtapi_ledger[cs_id]
+            LOG.info("Network Service {}: Schedule finished".format(cs_id))
+            return cs_id
 
 
 #############################
 # TAPI Wrapper input - output
 #############################
 
-    def tapi_error(self, func_id, error=None):
+    def tapi_error(self, cs_id, error=None):
         """
         This method is used to report back errors to the FLM
         """
         if error is None:
-            error = self.functions[func_id]['error']
-        LOG.error("Function " + func_id + ": error occured: " + error)
+            error = self.wtapi_ledger[cs_id]['error']
+        LOG.error("Network Service " + cs_id + ": error occured: " + error)
         # LOG.info("Function " + func_id + ": informing FLM")
 
         message = {
@@ -251,8 +201,8 @@ class TapiWrapper(object):
             'error': error,
             'timestamp': time.time()
         }
-        corr_id = self.functions[func_id]['orig_corr_id']
-        topic = self.functions[func_id]['topic']
+        corr_id = self.wtapi_ledger[cs_id]['orig_corr_id']
+        topic = self.wtapi_ledger[cs_id]['topic']
 
         self.manoconn.notify(topic,
                              yaml.dump(message),
@@ -262,44 +212,93 @@ class TapiWrapper(object):
     # Callbacks
     #############################
 
-    def vim_info_get(self, func_id, uuid, vim_db):
+    def vim_info_get(self, cs_id):
         """
         This function retrieves info from deployed vnfs in the vim to map them into topology ports
-        :param func_id:
+        :param cs_id:
         :return:
         """
-        LOG.debug('vim_info_get reporting')
-        function = self.functions[func_id]
-        return list(filter(lambda x: x['uuid'] == uuid, vim_db))
+        LOG.debug('Network Service {}: vim_info_get'.format(cs_id))
+        uuid = self.wtapi_ledger[cs_id]['vim_uuid']
+        self.wtapi_ledger[cs_id]['vim_name'] = list(filter(lambda x: x['uuid'] == uuid, self.vim_map))[0]
+        return
 
-    def virtual_links_create(self, func_id):
+    def virtual_links_create(self, cs_id):
         """
         This function creates virtual links defined in nsd between each vnf and also between vnf and single endpoints
-        :param func_id:
+        :param cs_id:
         :return:
         """
-        LOG.debug('virtual_links_create reporting')
+        LOG.debug("Network Service {}: Creating virtual links".format(cs_id))
         # Per each VL, create a CS
         # Match each VNF with its CP
-        a_cp = self.engine.entities[2]
-        z_cp = self.engine.entities[3]
-        self.engine.submit()
-        self.engine.tasks.append()
-        self.engine.create_connectivity_service('conn-plugin-1', a_cp, z_cp)
 
-    def virtual_links_remove(self, func_id):
+        ingress_list = self.wtapi_ledger[cs_id]['nap']['ingresses']
+        egress_list = self.wtapi_ledger[cs_id]['nap']['egresses']
+        vim_name = self.wtapi_ledger[cs_id]['vim_name']
+        egress_sip = self.engine.get_sip_by_name(vim_name)
+        calls = []
+        for ingress_point in ingress_list:
+            ingress_sip = self.engine.get_sip_by_name(ingress_point['location'])
+            for egress_point in egress_list:
+                # Creating unidirectional flows per each sip
+                calls.extend([
+                    self.engine.generate_call_from_nap_pair(
+                        ingress_point['nap'], egress_point['nap'],
+                        ingress_sip['name']['value'], egress_sip['name']['value'],
+                        layer='mpls',direction='unidir'),
+                    self.engine.generate_call_from_nap_pair(
+                        egress_point['nap'], ingress_point['nap'],
+                        egress_sip['name']['value'], ingress_sip['name']['value'],
+                        layer='mpls', direction='unidir'),
+                    self.engine.generate_call_from_nap_pair(
+                        ingress_point['nap'], egress_point['nap'],
+                        ingress_sip['name']['value'], egress_sip['name']['value'],
+                        layer='mpls_arp', direction='unidir', reserved_bw=1000),
+                    self.engine.generate_call_from_nap_pair(
+                        egress_point['nap'], ingress_point['nap'],
+                        egress_sip['name']['value'], ingress_sip['name']['value'],
+                        layer='mpls_arp', direction='unidir', reserved_bw=1000)
+                ])
+        # TODO: Flow to vrouter
+        with pool.ThreadPoolExecutor(max_workers=100) as executor:
+            futures_to_call = {
+                executor.submit(self.engine.create_connectivity_service, (self.engine, call)): call['callId']
+                for call in calls
+            }
+            for future in pool.as_completed(futures_to_call):
+                call_id = futures_to_call[future]
+                try:
+                    data = future.result()
+                except Exception as exc:
+                    LOG.error('{} generated an exception: {}'.format(call_id, exc))
+
+    def virtual_links_remove(self, cs_id):
         """
         This function removes virtual links previously created
-        :param func_id:
+        :param cs_id:
         :return:
         """
-        LOG.debug('virtual_links_remove reporting')
+        LOG.debug('Network Service {}: Removing virtual links'.format(cs_id))
         # Remove target VLs
 
     def wan_network_configure(self, ch, method, properties, payload):
         """
         This function handles a received message on the *.service.wan.configure
         topic.
+        payload:{
+            service_instance_id: :uuid:,
+            vim_list: [
+                {uuid: :uuid:, order: :int:}
+            ],
+            nap: {
+                ingresses: [
+                    {location: :String:, nap: :l3addr:}
+                ],
+                egresses: [
+                    {location: :String:, nap: :l3addr:}
+                ],
+        }
         """
 
         def send_error_response(error, func_id, scaling_type=None):
@@ -336,10 +335,8 @@ class TapiWrapper(object):
             send_error_response(error, None)
             return
 
-        func_id = message['id']
+        service_instance_id = message['service_instance_id']
 
-        # Add the function to the ledger
-        self.add_function_to_ledger(message, corr_id, func_id, topics.WAN_CONFIGURE)
 
         # Schedule the tasks that the Wrapper should do for this request.
         add_schedule =[
@@ -348,16 +345,26 @@ class TapiWrapper(object):
             'respond_to_request'
         ]
 
-        LOG.info("Functions " + str(self.functions))
-        LOG.info("Function " + func_id)
-        self.functions[func_id]['schedule'].extend(add_schedule)
+        LOG.info("Services deployed {}".format(self.wtapi_ledger))
+        LOG.info("Enabling networking for service {}".format(service_instance_id))
 
-        msg = ": New instantiation request received. Instantiation started."
-        LOG.info("Function " + func_id + msg)
+        self.wtapi_ledger[service_instance_id]={
+            'uuid': service_instance_id,
+            'egresses': message['nap']['egresses'],
+            'ingresses': message['nap']['ingresses'],
+            'vim': message['vim_list'],
+            'QoS':{'requested_banwidth': None, 'RTT': None},
+            'status': 'INIT',
+            'kill_service': False
+        }
+        self.wtapi_ledger[service_instance_id]['schedule'].extend(add_schedule)
+
+        msg = ": New network service request received. Creating flows..."
+        LOG.info("Network Service {}: {}" + service_instance_id + msg)
         # Start the chain of tasks
-        # self.start_next_task(func_id)
+        self.start_next_task(service_instance_id)
 
-        return self.functions[func_id]['schedule']
+        return self.wtapi_ledger[service_instance_id]['schedule']
 
     def wan_network_deconfigure(self, ch, method, properties, payload):
         """
@@ -439,142 +446,6 @@ class TapiWrapper(object):
 
     def ia_deconfigure_response(self, ch, method, prop, payload):
         pass
-
-    def ia_deploy_response(self, ch, method, prop, payload):
-        """
-        This method handles the response from the IA on the
-        vnf deploy request.
-        """
-
-        LOG.info("Payload of request: " + str(payload))
-
-        inc_message = yaml.load(payload)
-
-        func_id = tools.funcid_from_corrid(self.functions, prop.correlation_id)
-
-        msg = "Response from IA on vnf deploy call received."
-        LOG.info("Function " + func_id + msg)
-
-        self.functions[func_id]['status'] = inc_message['request_status']
-
-        if inc_message['request_status'] == "COMPLETED":
-            LOG.info("Vnf deployed correctly")
-            self.functions[func_id]["ia_vnfr"] = inc_message["vnfr"]
-            self.functions[func_id]["error"] = None
-
-            # TODO:Temporary fix for the HSP case, needs fixing in longterm
-            if "ip_mapping" in inc_message.keys():
-                mapping = inc_message["ip_mapping"]
-                self.functions[func_id]["ip_mapping"] = mapping
-            else:
-                self.functions[func_id]["ip_mapping"] = []
-
-        else:
-            LOG.info("Deployment failed: " + inc_message["message"])
-            self.functions[func_id]["error"] = inc_message["message"]
-            topic = self.functions[func_id]['topic']
-            self.tapi_error(func_id, topic)
-            return
-
-        self.start_next_task(func_id)
-
-    def ia_remove_response(self, ch, method, prop, payload):
-        """
-        This method handles responses on IA VNF remove requests.
-        """
-        inc_message = yaml.load(payload)
-
-        func_id = tools.funcid_from_corrid(self.functions, prop.correlation_id)
-
-        msg = "Response from IA on vnf remove call received."
-        LOG.info("Function " + func_id + msg)
-
-        if inc_message['request_status'] == "COMPLETED":
-            LOG.info("Vnf removal successful")
-            self.functions[func_id]["vnfr"]["status"] = "terminated"
-
-        else:
-            msg = "Removal failed: " + inc_message["message"]
-            LOG.info("Function " + func_id + msg)
-            self.functions[func_id]["error"] = inc_message["message"]
-            self.tapi_error(func_id, self.functions[func_id]['topic'])
-            return
-
-        self.start_next_task(func_id)
-
-    def deploy_cnf(self, func_id):
-        """
-        #TODO not usable by WIM
-        This methods requests the deployment of a cnf
-        """
-        function = self.functions[func_id]
-        obj_deployment = engine.TapiWrapperEngine.deployment_object(self, func_id, function['vnfd'])
-
-        LOG.info("Reply from Kubernetes" + str(obj_deployment))
-
-        deployment_selector = obj_deployment.spec.template.metadata.labels.get("deployment")
-        LOG.info("Deployment Selector: " + str(deployment_selector))
-
-        LOG.info("function[vnfd]:" + str(function['vnfd']))
-        obj_service=engine.TapiWrapperEngine.service_object(self, func_id, function['vnfd'], deployment_selector)
-        LOG.info("Service Object:" + str(obj_service))
-        LOG.info("Creating a Deployment")
-        engine.TapiWrapperEngine.create_deployment(self, obj_deployment, "default")
-        LOG.info("Creating a Service")
-        engine.TapiWrapperEngine.create_service(self, obj_service, "default")
-
-        outg_message = {}
-        outg_message['vnfd'] = function['vnfd']
-        outg_message['vnfd']['instance_uuid'] = function['id']
-        outg_message['vim_uuid'] = function['vim_uuid']
-        outg_message['service_instance_id'] = function['service_instance_id']
-
-        payload = yaml.dump(outg_message)
-
-        corr_id = str(uuid.uuid4())
-        self.functions[func_id]['act_corr_id'] = corr_id
-
-        msg = ": IA contacted for function deployment."
-        LOG.info("Function " + func_id + msg)
-        LOG.debug("Payload of request: " + payload)
-        # Contact the IA
-        self.manoconn.call_async(self.ia_deploy_response,
-                                 topics.CNF_DEPLOY,
-                                 payload,
-                                 correlation_id=corr_id)
-        LOG.info("CNF WAS DEPLOYED CORRECTLY")
-        # Pause the chain of tasks to wait for response
-        self.functions[func_id]['pause_chain'] = True
-
-    def remove_vnf(self, func_id):
-        """
-        #TODO Not usable by wim
-        This method request the removal of a vnf
-        """
-
-        function = self.functions[func_id]
-        outg_message = {}
-        outg_message["service_instance_id"] = function['serv_id']
-        outg_message['vim_uuid'] = function['vim_uuid']
-        outg_message['vnf_uuid'] = func_id
-
-        payload = yaml.dump(outg_message)
-
-        corr_id = str(uuid.uuid4())
-        self.functions[func_id]['act_corr_id'] = corr_id
-
-        msg = ": IA contacted for function removal."
-        LOG.info("Function " + func_id + msg)
-        LOG.debug("Payload of request: " + payload)
-        # Contact the IA
-        self.manoconn.call_async(
-            self.ia_remove_response,
-            topics.CNF_REMOVE,
-            payload,
-            correlation_id=corr_id)
-
-        # Pause the chain of tasks to wait for response
-        self.functions[func_id]['pause_chain'] = True
 
     def respond_to_request(self, func_id):
         """
