@@ -320,7 +320,7 @@ class TapiWrapperEngine(object):
         :param call:
         :return:
         """
-        LOG.debug('TapiWrapper: Creating connectivity service {}'.format(call))
+        LOG.debug('TapiWrapper: Creating connectivity service {}'.format(call['callId']))
 
         nbi_base_call_url = 'http://{}:{}/restconf/config/calls/call/'.format(self.wim_ip, self.wim_port)
         # tapi_cs_url = 'http://{}:{}/restconf/config/context/connectivity-service/'.format(
@@ -331,13 +331,11 @@ class TapiWrapperEngine(object):
         return response
 
     def remove_connectivity_service(self, uuid):
-        LOG.info('Removing connectivity service')
+        LOG.debug('TapiWrapper: Removing connectivity service {}'.format(uuid))
         # nbi_base_call_url = 'http://{}:{}/restconf/config/calls/call/'.format(self.wim_ip, self.wim_port)
         tapi_cs_url = 'http://{}:{}/restconf/config/context/connectivity-service/'.format(
             self.wim_ip, self.wim_port)
-        headers = {
-            'Accept': 'application/json'
-        }
+        headers = {'Accept': 'application/json'}
         response = requests.delete(tapi_cs_url + str(uuid), headers=headers)
         return response
 
@@ -345,4 +343,6 @@ class TapiWrapperEngine(object):
         # TODO Get it from WIM
         # self.get_sip_list(self.server_url)
         return list(filter(lambda x: x['name']['value-name'] == name, self.sip_list))
+
+
 test = TapiWrapperEngine()
