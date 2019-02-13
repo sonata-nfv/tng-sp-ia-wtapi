@@ -34,17 +34,8 @@ from urllib.parse import urlparse
 
 # List of topics that are used by the TAPI Wrapper for its rabbitMQ communication
 
-VIM_LIST = 'infrastructure.wtapi.management.compute.list' #List Compute VIM
-
-SVC_PREPARE = 'infrastructure.wtapi.service.prepare' #Prepare NFVI for service deployment
-SVC_REMOVE = 'infrastructure.wtapi.service.remove' #Remove Service instance
-
-WIM_LIST = 'infrastructure.wtapi.management.wan.list' #List WIMs
-WIM_ATTACH = 'infrastructure.wtapi.management.wan.attach' #Link VIM to WIM
-WIM_REMOVE = 'infrastructure.wtapi.management.wan.remove' #Remove WIM
-
-WAN_CONFIGURE = 'infrastructure.wtapi.service.wan.configure' #Configure WAN for service instance
-WAN_DECONFIGURE = 'infrastructure.wtapi.service.wan.deconfigure' #Deconfigure WAN for service instance
+WAN_CONFIGURE = 'infrastructure.tapi.service.wan.configure' #Configure WAN for service instance
+WAN_DECONFIGURE = 'infrastructure.tapi.service.wan.deconfigure' #Deconfigure WAN for service instance
 
 # Catalogue urls
 cat_path = os.environ.get("cat_path").strip("/")
