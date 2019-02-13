@@ -31,7 +31,9 @@ LABEL organization=5GTANGO
 
 
 # Configuration
-ENV broker_exchange son-broker
+ENV
+
+ENV broker_exchange son-kernel-ia
 ENV broker_host amqp://guest:guest@son-broker:5672/%2F
 
 # Catalogue information
