@@ -95,6 +95,7 @@ class TapiWrapper(object):
             try:
                 self.manoconn = messaging.ManoBrokerRequestResponseConnection(self.name)
                 LOG.debug("Wrapper is connected to broker.")
+                # NOTE: Is not yet connected since previous func is running in parallel, connection takes about 200 ms
                 break
             except:
                 time.sleep(0.1)
