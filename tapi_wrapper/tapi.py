@@ -356,7 +356,8 @@ class TapiWrapper(object):
             'vim': message['vim_list'],
             'QoS':{'requested_banwidth': None, 'RTT': None},
             'status': 'INIT',
-            'kill_service': False
+            'kill_service': False,
+            'schedule': []
         }
         self.wtapi_ledger[service_instance_id]['schedule'].extend(add_schedule)
 
