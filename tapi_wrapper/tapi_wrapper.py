@@ -87,7 +87,8 @@ class TapiWrapperEngine(object):
         # with open(connection_file, 'r') as cfp:
         #     self.virtual_links = cfp.readlines()
 
-        self.wim_ip = os.getenv('WIM_IP', '10.1.1.54')
+        # self.wim_ip = os.getenv('WIM_IP', '10.1.1.54')
+        self.wim_ip = '10.120.0.19'
         self.wim_port = os.getenv('WIM_PORT', 9881)
         # self.wim_port = os.getenv('WIM_PORT', 8182)
         self.sip_list = [  # TODO Get this list from ABNO NBI
