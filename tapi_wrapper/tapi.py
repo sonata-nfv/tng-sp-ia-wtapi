@@ -271,17 +271,22 @@ class TapiWrapper(object):
                         layer='mpls_arp', direction='unidir', reserved_bw=1000)
                 ])
         # TODO: Flow to vrouter
-        with pool.ThreadPoolExecutor(max_workers=100) as executor:
-            futures_to_call = {
-                executor.submit(self.engine.create_connectivity_service, (self.engine, call)): call['callId']
-                for call in calls
-            }
-            for future in pool.as_completed(futures_to_call):
-                call_id = futures_to_call[future]
-                try:
-                    data = future.result()
-                except Exception as exc:
-                    LOG.error('{} generated an exception: {}'.format(call_id, exc))
+        for call in calls:
+            try:
+                self.engine.create_connectivity_service(call)
+            except Exception as exc:
+                LOG.error('{} generated an exception: {}'.format(call['callId'], exc))
+        # with pool.ThreadPoolExecutor(max_workers=100) as executor:
+        #     futures_to_call = {
+        #         executor.submit(self.engine.create_connectivity_service, (self.engine, call)): call['callId']
+        #         for call in calls
+        #     }
+        #     for future in pool.as_completed(futures_to_call):
+        #         call_id = futures_to_call[future]
+        #         try:
+        #             data = future.result()
+        #         except Exception as exc:
+        #             LOG.error('{} generated an exception: {}'.format(call_id, exc))
         return {'result': True, 'calls_created': str(len(calls))}
 
     def virtual_links_remove(self, service_instance_id):
