@@ -90,11 +90,11 @@ class TapiWrapperEngine(object):
         self.wim_ip = os.getenv('WIM_IP', '10.1.1.54')
         self.wim_port = os.getenv('WIM_PORT', 9881)
         # self.wim_port = os.getenv('WIM_PORT', 8182)
-        self.sip_list = [  # Get this list from ABNO NBI
+        self.sip_list = [  # TODO Get this list from ABNO NBI
         {
             'uuid': '7be67c30-2bf9-4545-825e-81266cfff645',
             'name': {
-                'value-name':'bcn-1',
+                'value-name': 'bcn-1',
                 'value': '00:00:00:1b:21:7a:65:a8_3'
             },
             'administrative-state': 'UNLOCKED',
@@ -112,7 +112,7 @@ class TapiWrapperEngine(object):
         {
             'uuid': '44c03813-0e33-4f50-88d2-3ffd6804dd11',
             'name': {
-                'value-name':'core-datacenter',
+                'value-name': 'core-datacenter',
                 'value': '00:00:00:1e:67:a1:8f:c1_7'
             },
             'administrative-state': 'UNLOCKED',

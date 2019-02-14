@@ -47,6 +47,7 @@ logging.basicConfig(level=logging.DEBUG)
 LOG = logging.getLogger("tapi-wrapper:main")
 LOG.setLevel(logging.DEBUG)
 
+
 class TapiWrapper(object):
     """
     This class implements the WIM Tapi wrapper.
@@ -165,19 +166,23 @@ class TapiWrapper(object):
 
         # Select the next task, only if task list is not empty
         if len(self.wtapi_ledger[cs_id]['schedule']) > 0:
-
+            scheduled = self.wtapi_ledger[cs_id]['schedule'].pop(0)
+            LOG.debug('Network Service {}: Running {}'.format(cs_id, scheduled))
             # share state with other WTAPI Wrappers (pop)
-            next_task = getattr(self, self.wtapi_ledger[cs_id]['schedule'].pop(0))
+            next_task = getattr(self, scheduled)
 
             # Push the next task to the thread_pool
-            task = self.thread_pool.submit(next_task, (cs_id,))
+            # task = self.thread_pool.submit(next_task, (cs_id,))
+
+            result = next_task(cs_id)
+            LOG.debug(result)
 
             # Log if a task fails
-            if task.exception() is not None:
-                LOG.debug(task.result())
-
-            else:
-                self.start_next_task(cs_id)
+            # if task.exception() is not None:
+            #     LOG.debug(task.result())
+            #
+            # else:
+            self.start_next_task(cs_id)
         else:
             # del self.wtapi_ledger[cs_id]
             LOG.info("Network Service {}: Schedule finished".format(cs_id))
@@ -213,30 +218,30 @@ class TapiWrapper(object):
     # Callbacks
     #############################
 
-    def vim_info_get(self, cs_id):
+    def vim_info_get(self, service_instance_id):
         """
         This function retrieves info from deployed vnfs in the vim to map them into topology ports
-        :param cs_id:
+        :param service_instance_id:
         :return:
         """
-        LOG.debug('Network Service {}: vim_info_get'.format(cs_id))
-        uuid = self.wtapi_ledger[cs_id]['vim_uuid']
-        self.wtapi_ledger[cs_id]['vim_name'] = list(filter(lambda x: x['uuid'] == uuid, self.vim_map))[0]
-        return
+        LOG.debug('Network Service {}: vim_info_get'.format(service_instance_id))
+        uuid = self.wtapi_ledger[service_instance_id]['vim_uuid']
+        self.wtapi_ledger[service_instance_id]['vim_name'] = list(filter(lambda x: x['uuid'] == uuid, self.vim_map))[0]
+        return {'result':True, 'vim_name': self.wtapi_ledger[service_instance_id]['vim_name']}
 
-    def virtual_links_create(self, cs_id):
+    def virtual_links_create(self, service_instance_id):
         """
         This function creates virtual links defined in nsd between each vnf and also between vnf and single endpoints
-        :param cs_id:
+        :param service_instance_id:
         :return:
         """
-        LOG.debug("Network Service {}: Creating virtual links".format(cs_id))
+        LOG.debug("Network Service {}: Creating virtual links".format(service_instance_id))
         # Per each VL, create a CS
         # Match each VNF with its CP
 
-        ingress_list = self.wtapi_ledger[cs_id]['nap']['ingresses']
-        egress_list = self.wtapi_ledger[cs_id]['nap']['egresses']
-        vim_name = self.wtapi_ledger[cs_id]['vim_name']
+        ingress_list = self.wtapi_ledger[service_instance_id]['nap']['ingresses']
+        egress_list = self.wtapi_ledger[service_instance_id]['nap']['egresses']
+        vim_name = self.wtapi_ledger[service_instance_id]['vim_name']
         egress_sip = self.engine.get_sip_by_name(vim_name)
         calls = []
         for ingress_point in ingress_list:
@@ -273,14 +278,15 @@ class TapiWrapper(object):
                     data = future.result()
                 except Exception as exc:
                     LOG.error('{} generated an exception: {}'.format(call_id, exc))
+        return {'result': True, 'calls_created': str(len(calls))}
 
-    def virtual_links_remove(self, cs_id):
+    def virtual_links_remove(self, service_instance_id):
         """
         This function removes virtual links previously created
-        :param cs_id:
+        :param service_instance_id:
         :return:
         """
-        LOG.debug('Network Service {}: Removing virtual links'.format(cs_id))
+        LOG.debug('Network Service {}: Removing virtual links'.format(service_instance_id))
         # Remove target VLs
 
     def wan_network_configure(self, ch, method, properties, payload):
@@ -302,7 +308,7 @@ class TapiWrapper(object):
         }
         """
 
-        def send_error_response(error, func_id, scaling_type=None):
+        def send_error_response(error, service_instance_id, scaling_type=None):
 
             response = {
                 'error': error,
@@ -310,7 +316,7 @@ class TapiWrapper(object):
             }
 
             msg = ' Response on remove request: ' + str(response)
-            LOG.info('Function ' + str(func_id) + msg)
+            LOG.info('Function ' + str(service_instance_id) + msg)
             self.manoconn.notify(topics.WAN_DECONFIGURE,
                                  yaml.dump(response),
                                  correlation_id=corr_id)
@@ -357,7 +363,10 @@ class TapiWrapper(object):
             'QoS':{'requested_banwidth': None, 'RTT': None},
             'status': 'INIT',
             'kill_service': False,
-            'schedule': []
+            'schedule': [],
+            'orig_corr_id': corr_id,
+            'topic': properties.reply_to,
+
         }
         self.wtapi_ledger[service_instance_id]['schedule'].extend(add_schedule)
 
@@ -373,7 +382,7 @@ class TapiWrapper(object):
         This function handles a received message on the *.service.wan.deconfigure
         topic.
         """
-        def send_error_response(error, func_id, scaling_type=None):
+        def send_error_response(error, service_instance_id, scaling_type=None):
 
             response = {
                 'error': error,
@@ -381,7 +390,7 @@ class TapiWrapper(object):
             }
 
             msg = ' Response on remove request: ' + str(response)
-            LOG.info('Function ' + str(func_id) + msg)
+            LOG.info('Function ' + str(service_instance_id) + msg)
             self.manoconn.notify(topics.WAN_DECONFIGURE,
                                  yaml.dump(response),
                                  correlation_id=corr_id)
@@ -449,28 +458,29 @@ class TapiWrapper(object):
     def ia_deconfigure_response(self, ch, method, prop, payload):
         pass
 
-    def respond_to_request(self, func_id):
+    def respond_to_request(self, service_instance_id):
         """
         This method creates a response message for the sender of requests.
         """
 
-        message = {}
-        message["timestamp"] = time.time()
-        message["error"] = self.functions[func_id]['error']
-        message["vnf_id"] = func_id
+        message = {
+            'error': self.wtapi_ledger[service_instance_id]['error'],
+            'service_instance_id': service_instance_id,
+        }
 
-        if self.functions[func_id]['error'] is None:
+        if self.wtapi_ledger[service_instance_id]['error'] is None:
             message["status"] = "COMPLETED"
         else:
             message["status"] = "FAILED"
 
-        if self.functions[func_id]['message'] is not None:
-            message["message"] = self.functions[func_id]['message']
+        if self.wtapi_ledger[service_instance_id]['message'] is not None:
+            message["message"] = self.wtapi_ledger[service_instance_id]['message']
 
-        LOG.info("Generating response to the workflow request")
+        LOG.info("Generating response to the workflow request for {}".format(service_instance_id))
 
-        corr_id = self.functions[func_id]['orig_corr_id']
-        topic = self.functions[func_id]['topic']
+        corr_id = self.wtapi_ledger[service_instance_id]['orig_corr_id']
+        topic = self.wtapi_ledger[service_instance_id]['topic']
+        message["timestamp"] = time.time()
         self.manoconn.notify(
             topic,
             yaml.dump(message),
