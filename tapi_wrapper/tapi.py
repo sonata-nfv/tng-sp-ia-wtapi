@@ -148,7 +148,7 @@ class TapiWrapper(object):
     def get_services(self):
         return self.wtapi_ledger
 
-    def start_next_task(self, cs_id):
+    def start_next_task(self, service_instance_id):
         """
         This method makes sure that the next task in the schedule is started
         when a task is finished, or when the first task should begin.
@@ -157,25 +157,25 @@ class TapiWrapper(object):
         """
 
         # If the kill field is active, the chain is killed
-        if self.wtapi_ledger[cs_id]['kill_service']:
-            self.wtapi_ledger[cs_id]['status'] = 'KILLING'
-            LOG.info("Network Service " + cs_id + ": Killing running workflow")
+        if self.wtapi_ledger[service_instance_id]['kill_service']:
+            self.wtapi_ledger[service_instance_id]['status'] = 'KILLING'
+            LOG.info("Network Service " + service_instance_id + ": Killing running workflow")
             # TODO: delete records, stop (destroy namespace)
             # TODO: Or, jump into the kill workflow.
-            del self.wtapi_ledger[cs_id]
+            del self.wtapi_ledger[service_instance_id]
             return
 
         # Select the next task, only if task list is not empty
-        if len(self.wtapi_ledger[cs_id]['schedule']) > 0:
-            scheduled = self.wtapi_ledger[cs_id]['schedule'].pop(0)
-            LOG.debug('Network Service {}: Running {}'.format(cs_id, scheduled))
+        if len(self.wtapi_ledger[service_instance_id]['schedule']) > 0:
+            scheduled = self.wtapi_ledger[service_instance_id]['schedule'].pop(0)
+            LOG.debug('Network Service {}: Running {}'.format(service_instance_id, scheduled))
             # share state with other WTAPI Wrappers (pop)
             next_task = getattr(self, scheduled)
 
             # Push the next task to the thread_pool
             # task = self.thread_pool.submit(next_task, (cs_id,))
 
-            result = next_task(cs_id)
+            result = next_task(service_instance_id)
             LOG.debug(result)
 
             # Log if a task fails
@@ -183,11 +183,11 @@ class TapiWrapper(object):
             #     LOG.debug(task.result())
             #
             # else:
-            self.start_next_task(cs_id)
+            self.start_next_task(service_instance_id)
         else:
             # del self.wtapi_ledger[cs_id]
-            LOG.info("Network Service {}: Schedule finished".format(cs_id))
-            return cs_id
+            LOG.info("Network Service {}: Schedule finished".format(service_instance_id))
+            return service_instance_id
 
 
 #############################
@@ -243,8 +243,8 @@ class TapiWrapper(object):
         # Per each VL, create a CS
         # Match each VNF with its CP
 
-        ingress_list = self.wtapi_ledger[service_instance_id]['nap']['ingresses']
-        egress_list = self.wtapi_ledger[service_instance_id]['nap']['egresses']
+        ingress_list = self.wtapi_ledger[service_instance_id]['ingresses']
+        egress_list = self.wtapi_ledger[service_instance_id]['egresses']
         vim_name = self.wtapi_ledger[service_instance_id]['vim_name']
         egress_sip = self.engine.get_sip_by_name(vim_name)
         calls = []
