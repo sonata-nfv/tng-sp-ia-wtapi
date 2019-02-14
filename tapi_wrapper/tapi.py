@@ -359,7 +359,7 @@ class TapiWrapper(object):
             'uuid': service_instance_id,
             'egresses': message['nap']['egresses'],
             'ingresses': message['nap']['ingresses'],
-            'vim': message['vim_list'],
+            'vim_uuid': message['vim_list'],
             'QoS':{'requested_banwidth': None, 'RTT': None},
             'status': 'INIT',
             'kill_service': False,
