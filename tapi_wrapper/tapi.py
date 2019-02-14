@@ -226,9 +226,11 @@ class TapiWrapper(object):
         :return:
         """
         LOG.debug('Network Service {}: vim_info_get'.format(service_instance_id))
-        uuid = self.wtapi_ledger[service_instance_id]['vim_uuid']
+        vim_uuid = self.wtapi_ledger[service_instance_id]['vim_list'][0]['uuid']
         # FIXME raise error when no vims (result:False)
-        self.wtapi_ledger[service_instance_id]['vim_name'] = list(filter(lambda x: x['uuid'] == uuid, self.vim_map))[0]
+        self.wtapi_ledger[service_instance_id]['vim_name'] = list(
+            filter(lambda x: x['uuid'] == vim_uuid, self.vim_map)
+        )[0]['location']
         return {'result':True, 'vim_name': self.wtapi_ledger[service_instance_id]['vim_name']}
 
     def virtual_links_create(self, service_instance_id):
@@ -361,7 +363,7 @@ class TapiWrapper(object):
             'uuid': service_instance_id,
             'egresses': message['nap']['egresses'],
             'ingresses': message['nap']['ingresses'],
-            'vim_uuid': message['vim_list'],
+            'vim_list': message['vim_list'],
             'QoS':{'requested_banwidth': None, 'RTT': None},
             'status': 'INIT',
             'kill_service': False,
@@ -373,7 +375,7 @@ class TapiWrapper(object):
         self.wtapi_ledger[service_instance_id]['schedule'].extend(add_schedule)
 
         msg = ": New network service request received. Creating flows..."
-        LOG.info("Network Service {}: {}" + service_instance_id + msg)
+        LOG.info("Network Service {}: {}".format(service_instance_id,msg))
         # Start the chain of tasks
         self.start_next_task(service_instance_id)
 
