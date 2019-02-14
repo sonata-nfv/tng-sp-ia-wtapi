@@ -342,7 +342,7 @@ class TapiWrapperEngine(object):
     def get_sip_by_name(self, name):
         # TODO Get it from WIM
         # self.get_sip_list(self.server_url)
-        return list(filter(lambda x: x['name']['value-name'] == name, self.sip_list))
+        return list(filter(lambda x: x['name']['value-name'] == name, self.sip_list))[0]
 
 
 test = TapiWrapperEngine()
