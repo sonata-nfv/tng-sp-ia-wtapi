@@ -86,7 +86,8 @@ class TapiWrapper(object):
         #self.state = None  # the state of this plugin READY/RUNNING/PAUSED/FAILED
 
         self.vim_map = [   # Get this mappings from vim registry
-            {'uuid': '9aea3a58-31e6-4c6a-a699-866399d651c0', 'location': 'core-datacenter'},
+            # {'uuid': '9aea3a58-31e6-4c6a-a699-866399d651c0', 'location': 'core-datacenter'},
+            {'uuid': '1111-22222222-33333333-4444', 'location': 'core-datacenter'},
             {'uuid': '94c261b4-357e-48ec-bb32-d1cb3da993b0', 'location': 'edge-datacenter'}
         ]
 
@@ -226,6 +227,7 @@ class TapiWrapper(object):
         """
         LOG.debug('Network Service {}: vim_info_get'.format(service_instance_id))
         uuid = self.wtapi_ledger[service_instance_id]['vim_uuid']
+        # FIXME raise error when no vims (result:False)
         self.wtapi_ledger[service_instance_id]['vim_name'] = list(filter(lambda x: x['uuid'] == uuid, self.vim_map))[0]
         return {'result':True, 'vim_name': self.wtapi_ledger[service_instance_id]['vim_name']}
 
