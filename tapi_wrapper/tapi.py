@@ -375,6 +375,7 @@ class TapiWrapper(object):
             'schedule': [],
             'orig_corr_id': corr_id,
             'topic': properties.reply_to,
+            'error': None
 
         }
         self.wtapi_ledger[service_instance_id]['schedule'].extend(add_schedule)
