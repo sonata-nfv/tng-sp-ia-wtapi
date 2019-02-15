@@ -87,7 +87,8 @@ class TapiWrapperEngine(object):
         # with open(connection_file, 'r') as cfp:
         #     self.virtual_links = cfp.readlines()
 
-        self.wim_ip = os.getenv('WIM_IP', '10.1.1.54')
+        # self.wim_ip = os.getenv('WIM_IP', '10.1.1.54')
+        self.wim_ip = '10.120.0.19'
         self.wim_port = os.getenv('WIM_PORT', 9881)
         # self.wim_port = os.getenv('WIM_PORT', 8182)
         self.sip_list = [  # TODO Get this list from ABNO NBI
@@ -327,7 +328,7 @@ class TapiWrapperEngine(object):
         #    self.wim_ip, self.wim_port)
         headers = {'Content-type': 'application/json'}
 
-        response = requests.post(nbi_base_call_url + call['callId'], json=call, headers=headers)
+        response = requests.post(nbi_base_call_url + call['callId'] +'/', json=call, headers=headers)
         return response
 
     def remove_connectivity_service(self, uuid):
@@ -336,7 +337,7 @@ class TapiWrapperEngine(object):
         tapi_cs_url = 'http://{}:{}/restconf/config/context/connectivity-service/'.format(
             self.wim_ip, self.wim_port)
         headers = {'Accept': 'application/json'}
-        response = requests.delete(tapi_cs_url + str(uuid), headers=headers)
+        response = requests.delete(tapi_cs_url + str(uuid) + '/', headers=headers)
         return response
 
     def get_sip_by_name(self, name):
