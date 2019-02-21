@@ -277,7 +277,7 @@ class TapiWrapper(object):
             try:
                 self.engine.create_connectivity_service(call)
             except Exception as exc:
-                LOG.error('{} generated an exception: {}'.format(call['callId'], exc))
+                LOG.error('{} generated an exception: {}'.format(call['uuid'], exc))
         # with pool.ThreadPoolExecutor(max_workers=100) as executor:
         #     futures_to_call = {
         #         executor.submit(self.engine.create_connectivity_service, (self.engine, call)): call['callId']
