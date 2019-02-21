@@ -42,10 +42,12 @@ from tapi_wrapper import messaging as messaging
 from tapi_wrapper import tapi_helpers as tools
 from tapi_wrapper import tapi_topics as topics
 from tapi_wrapper import tapi_wrapper as engine
+from tapi_wrapper.logger import TangoLogger
 
-logging.basicConfig(level=logging.DEBUG)
-LOG = logging.getLogger("tapi-wrapper:main")
-LOG.setLevel(logging.DEBUG)
+# logging.basicConfig(level=logging.DEBUG)
+# LOG = logging.getLogger("tapi-wrapper:main")
+# LOG.setLevel(logging.DEBUG)
+LOG = TangoLogger.getLogger(__name__ + ':' + __file__, log_level=logging.DEBUG, log_json=True)
 
 
 class TapiWrapper(object):

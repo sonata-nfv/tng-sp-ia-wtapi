@@ -36,10 +36,13 @@ import time
 import os
 import threading
 from tapi_wrapper import messaging as messaging
+from tapi_wrapper.logger import TangoLogger
 
-logging.basicConfig(level=logging.INFO)
-LOG = logging.getLogger("wrapper:wtapi")
-LOG.setLevel(logging.DEBUG)
+# logging.basicConfig(level=logging.INFO)
+# LOG = logging.getLogger("wrapper:wtapi")
+# LOG.setLevel(logging.DEBUG)
+
+LOG = TangoLogger.getLogger(__name__ + ':' + __file__, log_level=logging.INFO, log_json=True)
 
 
 class ManoBasePlugin(object):

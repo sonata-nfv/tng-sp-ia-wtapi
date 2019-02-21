@@ -36,15 +36,16 @@ import requests
 import uuid
 import time
 import os
-from os import path
 import yaml, json
-import uuid
 from pprint import pprint
+from tapi_wrapper.logger import TangoLogger
 
-logging.basicConfig(level=logging.INFO)
-logging.getLogger('pika').setLevel(logging.ERROR)
-LOG = logging.getLogger("tapi-wrapper:tapi-wrapper")
-LOG.setLevel(logging.DEBUG)
+
+# logging.basicConfig(level=logging.INFO)
+# logging.getLogger('pika').setLevel(logging.ERROR)
+# LOG = logging.getLogger("tapi-wrapper:tapi-wrapper")
+LOG = TangoLogger.getLogger(__name__ + ':' + __file__, log_level=logging.DEBUG, log_json=True)
+# LOG.setLevel(logging.DEBUG)
 MAX_DEPLOYMENT_TIME = 5
 
 

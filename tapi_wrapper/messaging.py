@@ -37,11 +37,13 @@ import concurrent.futures as pool
 import uuid
 import time
 import os
+from tapi_wrapper.logger import TangoLogger
 
-logging.basicConfig(level=logging.INFO)
-logging.getLogger('pika').setLevel(logging.ERROR)
-LOG = logging.getLogger("tapi-wrapper:messaging")
-LOG.setLevel(logging.DEBUG)
+# logging.basicConfig(level=logging.INFO)
+# logging.getLogger('pika').setLevel(logging.ERROR)
+# LOG = logging.getLogger("tapi-wrapper:messaging")
+LOG = TangoLogger.getLogger(__name__ + ':' + __file__, log_level=logging.INFO, log_json=True)
+# LOG.setLevel(logging.DEBUG)
 
 # if we don't find a broker configuration in our ENV, we use this URL as default
 RABBITMQ_URL_FALLBACK = "amqp://guest:guest@localhost:5672/%2F"
