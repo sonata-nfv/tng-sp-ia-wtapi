@@ -90,8 +90,8 @@ class TapiWrapperEngine(object):
 
         # self.wim_ip = os.getenv('WIM_IP', '10.1.1.54')
         self.wim_ip = '10.120.0.19' # PROVIDED BY IA?
-        # self.wim_port = os.getenv('WIM_PORT', 9881)
-        self.wim_port = os.getenv('WIM_PORT', 8182)
+        # self.wim_port = os.getenv('WIM_PORT', 8182)
+        self.wim_port = 8182
         self.sip_list = [  # TODO Get this list from ABNO NBI
         {
             'uuid': '7be67c30-2bf9-4545-825e-81266cfff645',
