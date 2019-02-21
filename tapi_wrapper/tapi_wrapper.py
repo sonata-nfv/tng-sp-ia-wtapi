@@ -36,15 +36,16 @@ import requests
 import uuid
 import time
 import os
-from os import path
 import yaml, json
-import uuid
 from pprint import pprint
+from tapi_wrapper.logger import TangoLogger
 
-logging.basicConfig(level=logging.INFO)
-logging.getLogger('pika').setLevel(logging.ERROR)
-LOG = logging.getLogger("tapi-wrapper:tapi-wrapper")
-LOG.setLevel(logging.DEBUG)
+
+# logging.basicConfig(level=logging.INFO)
+# logging.getLogger('pika').setLevel(logging.ERROR)
+# LOG = logging.getLogger("tapi-wrapper:tapi-wrapper")
+LOG = TangoLogger.getLogger(__name__ + ':' + __file__, log_level=logging.DEBUG, log_json=True)
+# LOG.setLevel(logging.DEBUG)
 MAX_DEPLOYMENT_TIME = 5
 
 
@@ -88,9 +89,9 @@ class TapiWrapperEngine(object):
         #     self.virtual_links = cfp.readlines()
 
         # self.wim_ip = os.getenv('WIM_IP', '10.1.1.54')
-        self.wim_ip = '10.120.0.19'
-        self.wim_port = os.getenv('WIM_PORT', 9881)
-        # self.wim_port = os.getenv('WIM_PORT', 8182)
+        self.wim_ip = '10.120.0.19' # PROVIDED BY IA?
+        # self.wim_port = os.getenv('WIM_PORT', 9881)
+        self.wim_port = os.getenv('WIM_PORT', 8182)
         self.sip_list = [  # TODO Get this list from ABNO NBI
         {
             'uuid': '7be67c30-2bf9-4545-825e-81266cfff645',
@@ -315,29 +316,152 @@ class TapiWrapperEngine(object):
         self.index += 1
         return call
 
-    def create_connectivity_service(self, call):
+    def generate_cs_from_nap_pair(self, ingress_nap, egress_nap, ingress_ep, egress_ep,
+                                  direction='UNIDIRECTIONAL', layer='ETH', requested_capacity=100, latency=None):
+        """
+
+        :param uuid:
+        :param ingress_nap:
+        :param egress_nap:
+        :param ingress_ep:
+        :param egress_ep:
+        :param direction:
+        :param layer:
+        :param requested_capacity:
+        :return call:
+        """
+        allowed_layer = {'ETH', 'MPLS'}
+        special_layer = {'mpls_arp'}
+        allowed_direction = {'UNIDIRECTIONAL', 'BIDIRECTIONAL'}
+        if direction not in allowed_direction:
+            raise ValueError('Direction {} must be one of {}'.format(direction, allowed_direction))
+        if not (layer in allowed_layer or layer in special_layer):
+            raise ValueError('Layer {} must be one of {}'.format(layer, allowed_layer))
+        if layer == 'ETH' or (layer == 'MPLS' and direction == 'UNIDIRECTIONAL'):
+            connectivity_service = {
+                "uuid": str(self.index),
+                "end-point": [
+                    {
+                        "service-interface-point": "/restconf/config/context/service-interface-point/{}/".format(
+                            ingress_ep),
+                        "direction": "BIDIRECTIONAL",
+                        "layer-protocol-name": "ETH",
+                        "role": "SYMMETRIC"
+                    },
+                    {
+                        "service-interface-point": "/restconf/config/context/service-interface-point/{}/".format(
+                            egress_ep),
+                        "direction": "BIDIRECTIONAL",
+                        "layer-protocol-name": "ETH",
+                        "role": "SYMMETRIC"
+                    }
+                ],
+                "layer-protocol-name": layer,
+                "direction": direction,
+                "requested-capacity": {
+                    "total-size": {
+                        "value": str(requested_capacity / 1e6),
+                        "unit": "MBPS"
+                    }
+                },
+                "match": {
+                    'ipv4-source': ingress_nap,
+                    'ipv4-target': egress_nap,
+                    'link-layer-type': "2048"
+                }
+            }
+        elif layer == 'arp':
+            connectivity_service = {
+                "uuid": str(self.index),
+                "end-point": [
+                    {
+                        "service-interface-point": "/restconf/config/context/service-interface-point/{}/".format(
+                            ingress_ep),
+                        "direction": "BIDIRECTIONAL",
+                        "layer-protocol-name": "ETH",
+                        "role": "SYMMETRIC"
+                    },
+                    {
+                        "service-interface-point": "/restconf/config/context/service-interface-point/{}/".format(
+                            egress_ep),
+                        "direction": "BIDIRECTIONAL",
+                        "layer-protocol-name": "ETH",
+                        "role": "SYMMETRIC"
+                    }
+                ],
+                "layer-protocol-name": 'ETH',
+                "direction": direction,
+                "requested-capacity": {
+                    "total-size": {
+                        "value": str(requested_capacity / 1e6),
+                        "unit": "MBPS"
+                    }
+                },
+                "match": {
+                    'ipv4-source': ingress_nap,
+                    'ipv4-target': egress_nap,
+                    'link-layer-type': "2054"
+                }
+            }
+        elif layer == 'mpls_arp' and direction == 'UNIDIRECTIONAL':
+            connectivity_service = {
+                "uuid": str(self.index),
+                "end-point": [
+                    {
+                        "service-interface-point": "/restconf/config/context/service-interface-point/{}/".format(
+                            ingress_ep),
+                        "direction": "BIDIRECTIONAL",
+                        "layer-protocol-name": "ETH",
+                        "role": "SYMMETRIC"
+                    },
+                    {
+                        "service-interface-point": "/restconf/config/context/service-interface-point/{}/".format(
+                            egress_ep),
+                        "direction": "BIDIRECTIONAL",
+                        "layer-protocol-name": "ETH",
+                        "role": "SYMMETRIC"
+                    }
+                ],
+                "layer-protocol-name": 'MPLS',
+                "direction": direction,
+                "requested-capacity": {
+                    "total-size": {
+                        "value": str(requested_capacity / 1e6),
+                        "unit": "MBPS"
+                    }
+                },
+                "match": {
+                    'ipv4-source': ingress_nap,
+                    'ipv4-target': egress_nap,
+                    'link-layer-type': "2054"
+                }
+            }
+        else:
+            raise AttributeError('Layer {} is not compatible with direction {}'.format(layer, direction))
+        self.index += 1
+        return connectivity_service
+
+    def create_connectivity_service(self, cs):
         """
         Call this function per virtual link
-        :param call:
+        :param cs:
         :return:
         """
-        LOG.debug('TapiWrapper: Creating connectivity service {}'.format(call['callId']))
+        LOG.debug('TapiWrapper: Creating connectivity service {}'.format(cs['uuid']))
 
-        nbi_base_call_url = 'http://{}:{}/restconf/config/calls/call/'.format(self.wim_ip, self.wim_port)
-        # tapi_cs_url = 'http://{}:{}/restconf/config/context/connectivity-service/'.format(
-        #    self.wim_ip, self.wim_port)
+        tapi_cs_url = 'http://{}:{}/restconf/config/context/connectivity-service/{}/'.format(
+           self.wim_ip, self.wim_port, cs['uuid'])
         headers = {'Content-type': 'application/json'}
 
-        response = requests.post(nbi_base_call_url + call['callId'] +'/', json=call, headers=headers)
+        response = requests.post(tapi_cs_url, json=cs, headers=headers)
         return response
 
     def remove_connectivity_service(self, uuid):
         LOG.debug('TapiWrapper: Removing connectivity service {}'.format(uuid))
-        # nbi_base_call_url = 'http://{}:{}/restconf/config/calls/call/'.format(self.wim_ip, self.wim_port)
-        tapi_cs_url = 'http://{}:{}/restconf/config/context/connectivity-service/'.format(
-            self.wim_ip, self.wim_port)
+        tapi_cs_url = 'http://{}:{}/restconf/config/context/connectivity-service/{}/'.format(
+            self.wim_ip, self.wim_port, uuid)
         headers = {'Accept': 'application/json'}
-        response = requests.delete(tapi_cs_url + str(uuid) + '/', headers=headers)
+        response = requests.delete(tapi_cs_url, headers=headers)
         return response
 
     def get_sip_by_name(self, name):

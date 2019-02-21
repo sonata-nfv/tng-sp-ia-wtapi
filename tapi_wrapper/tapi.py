@@ -42,10 +42,12 @@ from tapi_wrapper import messaging as messaging
 from tapi_wrapper import tapi_helpers as tools
 from tapi_wrapper import tapi_topics as topics
 from tapi_wrapper import tapi_wrapper as engine
+from tapi_wrapper.logger import TangoLogger
 
-logging.basicConfig(level=logging.DEBUG)
-LOG = logging.getLogger("tapi-wrapper:main")
-LOG.setLevel(logging.DEBUG)
+# logging.basicConfig(level=logging.DEBUG)
+# LOG = logging.getLogger("tapi-wrapper:main")
+# LOG.setLevel(logging.DEBUG)
+LOG = TangoLogger.getLogger(__name__ + ':' + __file__, log_level=logging.DEBUG, log_json=True)
 
 
 class TapiWrapper(object):
@@ -253,22 +255,22 @@ class TapiWrapper(object):
             for egress_point in egress_list:
                 # Creating unidirectional flows per each sip
                 calls.extend([
-                    self.engine.generate_call_from_nap_pair(
+                    self.engine.generate_cs_from_nap_pair(
                         ingress_point['nap'], egress_point['nap'],
                         ingress_sip['name']['value'], egress_sip['name']['value'],
-                        layer='mpls',direction='unidir'),
-                    self.engine.generate_call_from_nap_pair(
+                        layer='MPLS',direction='UNIDIRECTIONAL', requested_capacity=1e6),
+                    self.engine.generate_cs_from_nap_pair(
                         egress_point['nap'], ingress_point['nap'],
                         egress_sip['name']['value'], ingress_sip['name']['value'],
-                        layer='mpls', direction='unidir'),
-                    self.engine.generate_call_from_nap_pair(
+                        layer='MPLS', direction='UNIDIRECTIONAL', requested_capacity=1e6),
+                    self.engine.generate_cs_from_nap_pair(
                         ingress_point['nap'], egress_point['nap'],
                         ingress_sip['name']['value'], egress_sip['name']['value'],
-                        layer='mpls_arp', direction='unidir', reserved_bw=1000),
-                    self.engine.generate_call_from_nap_pair(
+                        layer='mpls_arp', direction='UNIDIRECTIONAL', requested_capacity=1e3),
+                    self.engine.generate_cs_from_nap_pair(
                         egress_point['nap'], ingress_point['nap'],
                         egress_sip['name']['value'], ingress_sip['name']['value'],
-                        layer='mpls_arp', direction='unidir', reserved_bw=1000)
+                        layer='mpls_arp', direction='UNIDIRECTIONAL', requested_capacity=1e3)
                 ])
         # TODO: Flow to vrouter
         for call in calls:
