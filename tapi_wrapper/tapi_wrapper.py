@@ -334,7 +334,7 @@ class TapiWrapperEngine(object):
         allowed_direction = {'UNIDIRECTIONAL', 'BIDIRECTIONAL'}
         if direction not in allowed_direction:
             raise ValueError('Direction {} must be one of {}'.format(direction, allowed_direction))
-        if layer not in allowed_layer or layer not in special_layer:
+        if not (layer in allowed_layer or layer in special_layer):
             raise ValueError('Layer {} must be one of {}'.format(layer, allowed_layer))
         if layer == 'ETH' or (layer == 'MPLS' and direction == 'UNIDIRECTIONAL'):
             connectivity_service = {
