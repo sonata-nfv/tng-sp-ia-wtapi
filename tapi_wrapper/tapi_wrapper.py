@@ -89,119 +89,9 @@ class TapiWrapperEngine(object):
         #     self.virtual_links = cfp.readlines()
 
         # self.wim_ip = os.getenv('WIM_IP', '10.1.1.54')
-        self.wim_ip = '10.120.0.19' # PROVIDED BY IA?
+        self.wim_ip = '10.120.0.19'  # PROVIDED BY IA?
         # self.wim_port = os.getenv('WIM_PORT', 8182)
         self.wim_port = 8182
-        self.sip_list = [  # TODO Get this list from ABNO NBI
-        {
-            'uuid': '7be67c30-2bf9-4545-825e-81266cfff645',
-            'name': {
-                'value-name': 'bcn-1',
-                'value': '00:00:00:1b:21:7a:65:a8_3'
-            },
-            'administrative-state': 'UNLOCKED',
-            'operational-state': 'ENABLED',
-            'lifecycle-state': 'INSTALLED',
-            'total-potential-capacity': {
-                'total-size': {'value': 1000, 'unit': 'MBPS'},
-                'bandwidth-profile': None
-            },
-            'available-capacity': {
-                'total-size': {'value': 1000, 'unit': 'MBPS'},
-                'bandwidth-profile': None
-            }
-        },
-        {
-            'uuid': '44c03813-0e33-4f50-88d2-3ffd6804dd11',
-            'name': {
-                'value-name': 'core-datacenter',
-                'value': '00:00:00:1e:67:a1:8f:c1_7'
-            },
-            'administrative-state': 'UNLOCKED',
-            'operational-state': 'ENABLED',
-            'lifecycle-state': 'INSTALLED',
-            'total-potential-capacity': {
-                'total-size': {'value': 1000, 'unit': 'MBPS'},
-                'bandwidth-profile': None
-            },
-            'available-capacity': {
-                'total-size': {'value': 1000, 'unit': 'MBPS'},
-                'bandwidth-profile': None
-            }
-        },
-        {
-            'uuid': 'feebec07-e6b2-4636-98fa-8e87d74d2b43',
-            'name': {
-                'value-name': 'edge-datacenter',
-                'value': '00:00:00:1b:21:7a:65:a8_9'
-            },
-            'administrative-state': 'UNLOCKED',
-            'operational-state': 'ENABLED',
-            'lifecycle-state': 'INSTALLED',
-            'total-potential-capacity': {
-                'total-size': {'value': 1000, 'unit': 'MBPS'},
-                'bandwidth-profile': None
-            },
-            'available-capacity': {
-                'total-size': {'value': 1000, 'unit': 'MBPS'},
-                'bandwidth-profile': None
-            }
-        },
-        {
-            'uuid': 'd9f54721-d468-4cf3-9884-acb818842c05',
-            'name': {
-                'value-name': 'bcn-2',
-                'value': '00:00:00:60:dd:45:c3:73_3'
-            },
-            'administrative-state': 'UNLOCKED',
-            'operational-state': 'ENABLED',
-            'lifecycle-state': 'INSTALLED',
-            'total-potential-capacity': {
-                'total-size': {'value': 1000, 'unit': 'MBPS'},
-                'bandwidth-profile': None
-            },
-            'available-capacity': {
-                'total-size': {'value': 1000, 'unit': 'MBPS'},
-                'bandwidth-profile': None
-            }
-        },
-        {
-            'uuid': 'b0952891-4ae9-4a0b-81af-9dc320bf7809',
-            'name': {
-                'value-name': 'bcn-3',
-                'value': '00:00:00:1b:21:7a:65:a8_4'
-            },
-            'administrative-state': 'UNLOCKED',
-            'operational-state': 'ENABLED',
-            'lifecycle-state': 'INSTALLED',
-            'total-potential-capacity': {
-                'total-size': {'value': 1000, 'unit': 'MBPS'},
-                'bandwidth-profile': None
-            },
-            'available-capacity': {
-                'total-size': {'value': 1000, 'unit': 'MBPS'},
-                'bandwidth-profile': None
-            }
-        },
-        {
-            'uuid': '7eb946f9-9f00-4f32-a604-1b4163f11097',
-            'name': {
-                'value-name': 'bcn-4',
-                'value': '00:00:00:60:dd:45:c3:73_4'
-            },
-            'administrative-state': 'UNLOCKED',
-            'operational-state': 'ENABLED',
-            'lifecycle-state': 'INSTALLED',
-            'total-potential-capacity': {
-                'total-size': {'value': 1000, 'unit': 'MBPS'},
-                'bandwidth-profile': None
-            },
-            'available-capacity': {
-                'total-size': {'value': 1000, 'unit': 'MBPS'},
-                'bandwidth-profile': None
-            }
-        },
-    ]
 
     def get_topology(self):
         """
@@ -212,109 +102,6 @@ class TapiWrapperEngine(object):
         tapi_topology_url = 'http://' + self.wim_ip + ':' + str(self.wim_port) + '/restconf/config/context/topology/0/'
         wim_topology = requests.get(tapi_topology_url)
         return wim_topology.json()
-
-    def generate_call_from_nap_pair(self, ingress_nap, egress_nap, ingress_ep, egress_ep,
-                                    direction='unidir', layer='ethernet', reserved_bw=50000):
-        """
-
-        :param index:
-        :param ingress_nap:
-        :param egress_nap:
-        :param ingress_ep:
-        :param egress_ep:
-        :param direction:
-        :param layer:
-        :param reserved_bw:
-        :return call:
-        """
-
-        a_end = ingress_ep.split('_')
-        z_end = egress_ep.split('_')
-        if layer == 'ethernet' or (layer == 'mpls' and direction == 'unidir'):
-            call = {
-                "callId": str(self.index),
-                "contextId": "admin",
-                "aEnd": {
-                    "nodeId": a_end[0],
-                    "edgeEndId": a_end[1],
-                    "endpointId": ingress_ep
-                },
-                "zEnd": {
-                    "nodeId": z_end[0],
-                    "edgeEndId": z_end[1],
-                    "endpointId": egress_ep
-                },
-                "transportLayer": {
-                    "layer": layer,
-                    "direction": direction
-                },
-                "trafficParams": {
-                    "reservedBandwidth": str(reserved_bw)
-                },
-                "match": {
-                    'ipv4Src': ingress_nap,
-                    'ipv4Dst': egress_nap
-                }
-            }
-        elif layer == 'arp':
-            call = {
-                "callId": str(self.index),
-                "contextId": "admin",
-                "aEnd": {
-                    "nodeId": a_end[0],
-                    "edgeEndId": a_end[1],
-                    "endpointId": ingress_ep
-                },
-                "zEnd": {
-                    "nodeId": z_end[0],
-                    "edgeEndId": z_end[1],
-                    "endpointId": egress_ep
-                },
-                "transportLayer": {
-                    "layer": 'ethernet',
-                    "direction": direction
-                },
-                "trafficParams": {
-                    "reservedBandwidth": str(reserved_bw)
-                },
-                "match": {
-                    'ethType': 2054,
-                    'arpSpa': ingress_nap,
-                    'arpTpa': egress_nap
-                }
-            }
-        elif layer == 'mpls_arp' and direction == 'unidir':
-            call = {
-                "callId": str(self.index),
-                "contextId": "admin",
-                "aEnd": {
-                    "nodeId": a_end[0],
-                    "edgeEndId": a_end[1],
-                    "endpointId": ingress_ep
-                },
-                "zEnd": {
-                    "nodeId": z_end[0],
-                    "edgeEndId": z_end[1],
-                    "endpointId": egress_ep
-                },
-                "transportLayer": {
-                    "layer": 'mpls',
-                    "direction": direction
-                },
-                "trafficParams": {
-                    "reservedBandwidth": str(reserved_bw)
-                },
-                "match": {
-                    'ethType': 2054,
-                    'arpSpa': ingress_nap,
-                    'arpTpa': egress_nap
-                }
-            }
-        else:
-            raise AttributeError
-
-        self.index += 1
-        return call
 
     def generate_cs_from_nap_pair(self, ingress_nap, egress_nap, ingress_ep, egress_ep,
                                   direction='UNIDIRECTIONAL', layer='ETH', requested_capacity=100, latency=None):
@@ -448,7 +235,6 @@ class TapiWrapperEngine(object):
         :return:
         """
         LOG.debug('TapiWrapper: Creating connectivity service {}'.format(cs['uuid']))
-
         tapi_cs_url = 'http://{}:{}/restconf/config/context/connectivity-service/{}/'.format(
            self.wim_ip, self.wim_port, cs['uuid'])
         headers = {'Content-type': 'application/json'}
@@ -465,9 +251,9 @@ class TapiWrapperEngine(object):
         return response
 
     def get_sip_by_name(self, name):
-        # TODO Get it from WIM
-        # self.get_sip_list(self.server_url)
-        return list(filter(lambda x: x['name']['value-name'] == name, self.sip_list))[0]
+        tapi_sip_url = 'http://{}:{}/restconf/config/context/service-interface-point/'.format(self.wim_ip, self.wim_port)
+        sip_list = requests.get(tapi_sip_url).json()
+        return list(filter(lambda x: x['name']['value-name'] == name, sip_list))[0]
 
 
 test = TapiWrapperEngine()

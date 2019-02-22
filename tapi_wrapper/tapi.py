@@ -221,13 +221,13 @@ class TapiWrapper(object):
     # Callbacks
     #############################
 
-    def vim_info_get(self, service_instance_id):
+    def get_vim_info(self, service_instance_id):
         """
         This function retrieves info from deployed vnfs in the vim to map them into topology ports
         :param service_instance_id:
         :return:
         """
-        LOG.debug('Network Service {}: vim_info_get'.format(service_instance_id))
+        LOG.debug('Network Service {}: get_vim_info'.format(service_instance_id))
         vim_uuid = self.wtapi_ledger[service_instance_id]['vim_list'][0]['uuid']
         # FIXME raise error when no vims (result:False)
         self.wtapi_ledger[service_instance_id]['vim_name'] = list(
@@ -249,12 +249,12 @@ class TapiWrapper(object):
         egress_list = self.wtapi_ledger[service_instance_id]['egresses']
         vim_name = self.wtapi_ledger[service_instance_id]['vim_name']
         egress_sip = self.engine.get_sip_by_name(vim_name)
-        calls = []
+        connectivity_services = []
         for ingress_point in ingress_list:
             ingress_sip = self.engine.get_sip_by_name(ingress_point['location'])
             for egress_point in egress_list:
                 # Creating unidirectional flows per each sip
-                calls.extend([
+                connectivity_services.extend([
                     self.engine.generate_cs_from_nap_pair(
                         ingress_point['nap'], egress_point['nap'],
                         ingress_sip['name']['value'], egress_sip['name']['value'],
@@ -272,12 +272,12 @@ class TapiWrapper(object):
                         egress_sip['name']['value'], ingress_sip['name']['value'],
                         layer='mpls_arp', direction='UNIDIRECTIONAL', requested_capacity=1e3)
                 ])
-        # TODO: Flow to vrouter
-        for call in calls:
+        # TODO: Flow to vrouter <- Provided by IA?
+        for connectivity_service in connectivity_services:
             try:
-                self.engine.create_connectivity_service(call)
+                self.engine.create_connectivity_service(connectivity_service)
             except Exception as exc:
-                LOG.error('{} generated an exception: {}'.format(call['uuid'], exc))
+                LOG.error('{} generated an exception: {}'.format(connectivity_service['uuid'], exc))
         # with pool.ThreadPoolExecutor(max_workers=100) as executor:
         #     futures_to_call = {
         #         executor.submit(self.engine.create_connectivity_service, (self.engine, call)): call['callId']
@@ -289,7 +289,7 @@ class TapiWrapper(object):
         #             data = future.result()
         #         except Exception as exc:
         #             LOG.error('{} generated an exception: {}'.format(call_id, exc))
-        return {'result': True, 'calls_created': str(len(calls))}
+        return {'result': True, 'calls_created': str(len(connectivity_services))}
 
     def virtual_links_remove(self, service_instance_id):
         """
@@ -358,7 +358,7 @@ class TapiWrapper(object):
 
         # Schedule the tasks that the Wrapper should do for this request.
         add_schedule =[
-            'vim_info_get',
+            'get_vim_info',
             'virtual_links_create',
             'respond_to_request'
         ]
