@@ -25,35 +25,7 @@ the Horizon 2020 and 5G-PPP programmes. The authors would like to
 acknowledge the contributions of their colleagues of the 5GTANGO
 partner consortium (www.5gtango.eu).
 """
-"""
-This is SONATA's function lifecycle management plugin
-"""
-
-import os
-from urllib.parse import urlparse
-
 # List of topics that are used by the TAPI Wrapper for its rabbitMQ communication
 
 WAN_CONFIGURE = 'infrastructure.tapi.service.wan.configure' #Configure WAN for service instance
 WAN_DECONFIGURE = 'infrastructure.tapi.service.wan.deconfigure' #Deconfigure WAN for service instance
-
-# Catalogue urls
-cat_path = os.environ.get("cat_path").strip("/")
-vnfd_ext = os.environ.get("vnfd_collection").strip("/")
-nsd_ext = os.environ.get("nsd_collection").strip("/")
-
-vnfd_path = cat_path + '/' + vnfd_ext
-nsd_path = cat_path + '/' + nsd_ext
-
-
-# Repository urls
-repo_path = os.environ.get("repo_path").strip("/")
-vnfr_ext = os.environ.get("vnfr_collection").strip("/")
-nsr_ext = os.environ.get("nsr_collection").strip("/")
-
-
-vnfr_path = repo_path + '/' + vnfr_ext
-nsr_path = repo_path + '/' + nsr_ext
-
-# Monitoring urls
-monitoring_path = os.environ.get("monitoring_path").strip("/")
