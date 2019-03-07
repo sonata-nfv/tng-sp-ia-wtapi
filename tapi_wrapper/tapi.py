@@ -157,61 +157,63 @@ class TapiWrapper(object):
         :param func_id: the inst uuid of the function that is being handled.
         :param first: indicates whether this is the first task in a chain.
         """
+        try:
+            # If the kill field is active, the chain is killed
+            if self.wtapi_ledger[service_instance_id]['kill_service']:
+                self.wtapi_ledger[service_instance_id]['status'] = 'KILLING'
+                LOG.info("Network Service " + service_instance_id + ": Killing running workflow")
+                # TODO: delete records, stop (destroy namespace)
+                # TODO: Or, jump into the kill workflow.
+                del self.wtapi_ledger[service_instance_id]
+                return
 
-        # If the kill field is active, the chain is killed
-        if self.wtapi_ledger[service_instance_id]['kill_service']:
-            self.wtapi_ledger[service_instance_id]['status'] = 'KILLING'
-            LOG.info("Network Service " + service_instance_id + ": Killing running workflow")
-            # TODO: delete records, stop (destroy namespace)
-            # TODO: Or, jump into the kill workflow.
-            del self.wtapi_ledger[service_instance_id]
-            return
+            # Select the next task, only if task list is not empty
+            if len(self.wtapi_ledger[service_instance_id]['schedule']) > 0:
+                scheduled = self.wtapi_ledger[service_instance_id]['schedule'].pop(0)
+                LOG.debug('Network Service {}: Running {}'.format(service_instance_id, scheduled))
+                # share state with other WTAPI Wrappers (pop)
+                next_task = getattr(self, scheduled)
 
-        # Select the next task, only if task list is not empty
-        if len(self.wtapi_ledger[service_instance_id]['schedule']) > 0:
-            scheduled = self.wtapi_ledger[service_instance_id]['schedule'].pop(0)
-            LOG.debug('Network Service {}: Running {}'.format(service_instance_id, scheduled))
-            # share state with other WTAPI Wrappers (pop)
-            next_task = getattr(self, scheduled)
+                # Push the next task to the thread_pool
+                # task = self.thread_pool.submit(next_task, (cs_id,))
 
-            # Push the next task to the thread_pool
-            # task = self.thread_pool.submit(next_task, (cs_id,))
+                result = next_task(service_instance_id)
+                LOG.debug('Network Service {}: Task finished, result: {}'.format(service_instance_id, result))
 
-            result = next_task(service_instance_id)
-            LOG.debug(result)
-
-            # Log if a task fails
-            # if task.exception() is not None:
-            #     LOG.debug(task.result())
-            #
-            # else:
-            self.start_next_task(service_instance_id)
-        else:
-            # del self.wtapi_ledger[cs_id]
-            LOG.info("Network Service {}: Schedule finished".format(service_instance_id))
-            return service_instance_id
+                # Log if a task fails
+                # if task.exception() is not None:
+                #     LOG.debug(task.result())
+                #
+                # else:
+                self.start_next_task(service_instance_id)
+            else:
+                # del self.wtapi_ledger[cs_id]
+                LOG.info("Network Service {}: Schedule finished".format(service_instance_id))
+                return service_instance_id
+        except Exception as e:
+            self.wtapi_ledger[service_instance_id]['schedule'] = []
+            self.tapi_error(service_instance_id, e)
 
 
 #############################
 # TAPI Wrapper input - output
 #############################
 
-    def tapi_error(self, cs_id, error=None):
+    def tapi_error(self, service_instance_id, error=None):
         """
         This method is used to report back errors to the FLM
         """
         if error is None:
-            error = self.wtapi_ledger[cs_id]['error']
-        LOG.error("Network Service " + cs_id + ": error occured: " + error)
-        # LOG.info("Function " + func_id + ": informing FLM")
+            error = self.wtapi_ledger[service_instance_id]['error']
+        LOG.error("Network Service " + service_instance_id + ": error occured: " + error)
 
         message = {
             'status': 'failed',
             'error': error,
             'timestamp': time.time()
         }
-        corr_id = self.wtapi_ledger[cs_id]['orig_corr_id']
-        topic = self.wtapi_ledger[cs_id]['topic']
+        corr_id = self.wtapi_ledger[service_instance_id]['orig_corr_id']
+        topic = self.wtapi_ledger[service_instance_id]['topic']
 
         self.manoconn.notify(topic,
                              yaml.dump(message),
@@ -220,6 +222,15 @@ class TapiWrapper(object):
     #############################
     # Callbacks
     #############################
+
+    def clean_ledger(self, service_instance_id):
+        LOG.debug('Cleaning context of {}'.format(service_instance_id))
+        if self.wtapi_ledger[service_instance_id]['schedule']:
+            raise ValueError('Schedule not empty')
+        elif self.wtapi_ledger[service_instance_id]['active_connectivity_services']:
+            raise ValueError('There are still active connectivity services')
+        else:
+            del self.wtapi_ledger[service_instance_id]
 
     def get_vim_info(self, service_instance_id):
         """
@@ -249,11 +260,13 @@ class TapiWrapper(object):
         egress_list = self.wtapi_ledger[service_instance_id]['egresses']
         vim_name = self.wtapi_ledger[service_instance_id]['vim_name']
         egress_sip = self.engine.get_sip_by_name(vim_name)
+        self.wtapi_ledger[service_instance_id]['active_connectivity_services'] = []
         connectivity_services = []
         for ingress_point in ingress_list:
             ingress_sip = self.engine.get_sip_by_name(ingress_point['location'])
             for egress_point in egress_list:
                 # Creating unidirectional flows per each sip
+                # TODO: add latency param
                 connectivity_services.extend([
                     self.engine.generate_cs_from_nap_pair(
                         ingress_point['nap'], egress_point['nap'],
@@ -276,6 +289,9 @@ class TapiWrapper(object):
         for connectivity_service in connectivity_services:
             try:
                 self.engine.create_connectivity_service(connectivity_service)
+                self.wtapi_ledger[service_instance_id]['active_connectivity_services'].append(
+                    connectivity_service['uuid'])
+
             except Exception as exc:
                 LOG.error('{} generated an exception: {}'.format(connectivity_service['uuid'], exc))
         # with pool.ThreadPoolExecutor(max_workers=100) as executor:
@@ -289,7 +305,7 @@ class TapiWrapper(object):
         #             data = future.result()
         #         except Exception as exc:
         #             LOG.error('{} generated an exception: {}'.format(call_id, exc))
-        return {'result': True, 'calls_created': str(len(connectivity_services))}
+        return {'result': True, 'calls_created': [cs['uuid'] for cs in connectivity_services]}
 
     def virtual_links_remove(self, service_instance_id):
         """
@@ -298,7 +314,13 @@ class TapiWrapper(object):
         :return:
         """
         LOG.debug('Network Service {}: Removing virtual links'.format(service_instance_id))
-        # Remove target VLs
+        if 'active_connectivity_services' in self.wtapi_ledger[service_instance_id].keys():
+            for cs_uuid in self.wtapi_ledger[service_instance_id]['active_connectivity_services']:
+                self.engine.remove_connectivity_service(cs_uuid)
+            self.wtapi_ledger[service_instance_id]['active_connectivity_services'] = []
+        else:
+            LOG.warning('Requested virtual_links_remove for {} but there are no active connections'.format(
+                service_instance_id))
 
     def wan_network_configure(self, ch, method, properties, payload):
         """
@@ -318,17 +340,15 @@ class TapiWrapper(object):
                 ],
         }
         """
-
         def send_error_response(error, service_instance_id, scaling_type=None):
 
             response = {
                 'error': error,
                 'status': 'ERROR'
             }
-
-            msg = ' Response on remove request: ' + str(response)
-            LOG.info('Function ' + str(service_instance_id) + msg)
-            self.manoconn.notify(topics.WAN_DECONFIGURE,
+            msg = ' Response on create request: ' + str(response)
+            LOG.info('Service ' + str(service_instance_id) + msg)
+            self.manoconn.notify(topics.WAN_CONFIGURE,
                                  yaml.dump(response),
                                  correlation_id=corr_id)
 
@@ -340,21 +360,18 @@ class TapiWrapper(object):
         LOG.debug('Parameters:channel:{},method:{},properties:{},payload:{}'.format(ch, method, properties, payload))
         message = yaml.load(payload)
 
-        # Extract the correlation id
+        # Check if payload and properties are ok
         corr_id = properties.correlation_id
-
         if corr_id is None:
             error = 'No correlation id provided in header of request'
             send_error_response(error, None)
             return
-
         if not isinstance(message, dict):
             error = 'Payload is not a dictionary'
             send_error_response(error, None)
             return
 
         service_instance_id = message['service_instance_id']
-
 
         # Schedule the tasks that the Wrapper should do for this request.
         add_schedule =[
@@ -363,7 +380,7 @@ class TapiWrapper(object):
             'respond_to_request'
         ]
 
-        LOG.info("Services deployed {}".format(self.wtapi_ledger))
+        LOG.debug("Services deployed {}".format(self.wtapi_ledger))
         LOG.info("Enabling networking for service {}".format(service_instance_id))
 
         self.wtapi_ledger[service_instance_id]={
@@ -383,8 +400,8 @@ class TapiWrapper(object):
         }
         self.wtapi_ledger[service_instance_id]['schedule'].extend(add_schedule)
 
-        msg = ": New network service request received. Creating flows..."
-        LOG.info("Network Service {}: {}".format(service_instance_id,msg))
+        msg = "New network service request received. Creating flows..."
+        LOG.info("Network Service {}: {}".format(service_instance_id, msg))
         # Start the chain of tasks
         self.start_next_task(service_instance_id)
 
@@ -394,6 +411,7 @@ class TapiWrapper(object):
         """
         This function handles a received message on the *.service.wan.deconfigure
         topic.
+        payload: { service_instance_id: :uuid:}
         """
         def send_error_response(error, service_instance_id, scaling_type=None):
 
@@ -401,9 +419,8 @@ class TapiWrapper(object):
                 'error': error,
                 'status': 'ERROR'
             }
-
             msg = ' Response on remove request: ' + str(response)
-            LOG.info('Function ' + str(service_instance_id) + msg)
+            LOG.info('Service ' + str(service_instance_id) + msg)
             self.manoconn.notify(topics.WAN_DECONFIGURE,
                                  yaml.dump(response),
                                  correlation_id=corr_id)
@@ -419,35 +436,33 @@ class TapiWrapper(object):
 
         # Check if payload and properties are ok.
         corr_id = properties.correlation_id
-
         if corr_id is None:
             error = 'No correlation id provided in header of request'
             send_error_response(error, None)
             return
-
         if not isinstance(message, dict):
             error = 'Payload is not a dictionary'
             send_error_response(error, None)
             return
 
-        func_id = message['id']
-
-        self.add_function_to_ledger(message, corr_id, func_id, topics.WAN_DECONFIGURE)
+        service_instance_id = message['service_instance_id']
 
         # Schedule the tasks that the K8S Wrapper should do for this request.
+        LOG.debug("Services deployed {}".format(self.wtapi_ledger))
         add_schedule = [
             'virtual_links_remove',
-            'respond_to_request'
+            'respond_to_request',
+            'clean_ledger'
         ]
 
-        self.functions[func_id]['schedule'].extend(add_schedule)
+        self.wtapi_ledger[service_instance_id]['schedule'].extend(add_schedule)
 
-        msg = ": New kill request received."
-        LOG.info("Function " + func_id + msg)
+        msg = "Network service remove request received."
+        LOG.info("Network Service {}: {}".format(service_instance_id, msg))
         # Start the chain of tasks
-        # self.start_next_task(func_id)
+        self.start_next_task(service_instance_id)
 
-        return self.functions[func_id]['schedule']
+        return self.wtapi_ledger[service_instance_id]['schedule']
 
     def no_resp_needed(self, ch, method, prop, payload):
         """

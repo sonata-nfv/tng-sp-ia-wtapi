@@ -238,17 +238,30 @@ class TapiWrapperEngine(object):
         tapi_cs_url = 'http://{}:{}/restconf/config/context/connectivity-service/{}/'.format(
            self.wim_ip, self.wim_port, cs['uuid'])
         headers = {'Content-type': 'application/json'}
-
-        response = requests.post(tapi_cs_url, json=cs, headers=headers)
-        return response
+        try:
+            response = requests.post(tapi_cs_url, json=cs, headers=headers)
+        except Exception as e:
+            raise e
+        else:
+            if 200 <= response.status_code < 300:
+                return response
+            else:
+                raise ConnectionError({'msg': response.text, 'code': response.status_code})
 
     def remove_connectivity_service(self, uuid):
         LOG.debug('TapiWrapper: Removing connectivity service {}'.format(uuid))
         tapi_cs_url = 'http://{}:{}/restconf/config/context/connectivity-service/{}/'.format(
             self.wim_ip, self.wim_port, uuid)
         headers = {'Accept': 'application/json'}
-        response = requests.delete(tapi_cs_url, headers=headers)
-        return response
+        try:
+            response = requests.delete(tapi_cs_url, headers=headers)
+        except Exception as e:
+            raise e
+        else:
+            if 200 <= response.status_code < 300:
+                return response
+            else:
+                raise ConnectionError({'msg': response.text, 'code': response.status_code})
 
     def get_sip_by_name(self, name):
         tapi_sip_url = 'http://{}:{}/restconf/config/context/service-interface-point/'.format(self.wim_ip, self.wim_port)
