@@ -34,30 +34,6 @@ LABEL organization=5GTANGO
 ENV broker_exchange son-kernel-ia
 ENV broker_host amqp://guest:guest@son-broker:5672/%2F
 
-# Catalogue information
-ENV cat_path http://tng-cat:4011/api/catalogues/v2
-ENV vnfd_collection vnfs
-ENV nsd_collection network-services
-
-
-# Repository information
-ENV repo_path http://tng-rep:4012/
-#ENV repo_path http://tng-rep:4012/records
-ENV vnfr_collection vnfrs
-ENV nsr_collection nsrs
-
-ENV WIM_IP 10.1.1.54
-ENV WIM_PORT 9881
-#ENV WIM_PORT 8182
-
-
-
-# Monitoring information
-ENV monitoring_path http://son-monitor-manager:8000/api/v1
-
-# TODO: Database information
-# ENV Postgres
-
 # Install dependencies
 RUN apt update && apt install -y glpk-utils python3-pip libffi-dev libssl-dev git
 
@@ -75,5 +51,3 @@ RUN python setup.py develop
 ADD .  /tng-sp-ia-wtapi
 
 CMD ["tng-sp-ia-wtapi"]
-
-
