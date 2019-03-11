@@ -44,6 +44,10 @@ WORKDIR /
 ADD README.md /tng-sp-ia-wtapi/
 ADD setup.py  /tng-sp-ia-wtapi/
 
+# Env @ tng-devops
+# POSTGRES_USER
+# POSTGRES_PASSWORD
+
 # install actual plugin
 WORKDIR /tng-sp-ia-wtapi
 RUN python setup.py develop

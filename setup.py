@@ -66,7 +66,15 @@ setup(
     license='Apache 2.0',
 
     packages=find_packages(),
-    install_requires=['amqpstorm', 'pytest', 'PyYAML', 'requests', 'pycodestyle', 'coloredlogs'],
+    install_requires=[
+        'amqpstorm',
+        'pytest',
+        'PyYAML',
+        'requests',
+        'pycodestyle',
+        'coloredlogs',
+        'psycopg2',
+    ],
     setup_requires=['pytest-runner'],
 
     # To provide executable scripts, use entry points in preference to the

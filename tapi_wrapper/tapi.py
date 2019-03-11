@@ -37,6 +37,7 @@ import json
 import threading
 import sys
 import concurrent.futures as pool
+import psycopg2
 
 from tapi_wrapper import messaging as messaging
 from tapi_wrapper import tapi_helpers as tools
@@ -78,6 +79,8 @@ class TapiWrapper(object):
 
         base = 'amqp://' + 'guest' + ':' + 'guest'
         broker = os.environ.get("broker_host").split("@")[-1].split("/")[0]
+        self.psql_user = os.environ.get('POSTGRES_USER')
+        self.psql_pass = os.environ.get('POSTGRES_PASSWORD')
         self.url_base = base + '@' + broker + '/'
 
         self.name = "{}.{}".format(name, self.__class__.__name__)
@@ -208,7 +211,7 @@ class TapiWrapper(object):
         LOG.error("Network Service " + service_instance_id + ": error occured: " + error)
 
         message = {
-            'status': 'failed',
+            'request_status': 'FAILED',
             'error': error,
             'timestamp': time.time()
         }
@@ -223,6 +226,52 @@ class TapiWrapper(object):
     # Callbacks
     #############################
 
+    def insert_reference_database(self, service_instance_id):
+        try:
+            connection = psycopg2.connect(user=self.psql_user,
+                                          password=self.psql_pass,
+                                          host="son-postgres",
+                                          port="5432",
+                                          database="wimregistry")
+            cursor = connection.cursor()
+            wim_uuid = self.wtapi_ledger[service_instance_id]['wim_uuid']
+            query = f"INSERT INTO service_instances (instance_uuid, wim_uuid) VALUES " \
+                    f"({service_instance_id}, {wim_uuid});"
+            cursor.execute(query)
+            resp = cursor.fetchall()
+            LOG.debug(resp)
+            return {'result': True, 'message': f'wimregistry row created for {service_instance_id}'}
+        except (Exception, psycopg2.Error) as error:
+            exception_message = str(error)
+            return {'result': False, 'message': f'error inserting {service_instance_id}', 'error': exception_message}
+        finally:
+            # closing database connection.
+            if connection:
+                cursor.close()
+                connection.close()
+
+    def delete_reference_database(self, service_instance_id):
+        try:
+            connection = psycopg2.connect(user=self.psql_user,
+                                          password=self.psql_pass,
+                                          host="son-postgres",
+                                          port="5432",
+                                          database="wimregistry")
+            cursor = connection.cursor()
+            query = f"DELETE FROM service_instances WHERE instance_uuid ='{service_instance_id}';"
+            cursor.execute(query)
+            resp = cursor.fetchall()
+            LOG.debug(resp)
+            return {'result': True, 'message': f'wimregistry deleted for {service_instance_id}'}
+        except (Exception, psycopg2.Error) as error:
+            exception_message = str(error)
+            return {'result': False, 'message': f'error deleting {service_instance_id}', 'error': exception_message}
+        finally:
+            # closing database connection.
+            if connection:
+                cursor.close()
+                connection.close()
+
     def clean_ledger(self, service_instance_id):
         LOG.debug('Cleaning context of {}'.format(service_instance_id))
         if self.wtapi_ledger[service_instance_id]['schedule']:
@@ -231,6 +280,47 @@ class TapiWrapper(object):
             raise ValueError('There are still active connectivity services')
         else:
             del self.wtapi_ledger[service_instance_id]
+
+    def get_wim_info(self, service_instance_id):
+        """
+        This function retrieves info from deployed vnfs in the vim to map them into topology ports
+        :param service_instance_id:
+        :return:
+        """
+        try:
+            connection = psycopg2.connect(user=self.psql_user,
+                                          password=self.psql_pass,
+                                          host="son-postgres",
+                                          port="5432",
+                                          database="wimregistry")
+            cursor = connection.cursor()
+            vim_uuid = self.wtapi_ledger[service_instance_id]['vim_list'][0]['uuid']
+            query_wim = f"SELECT (wim_uuid) FROM attached_vim WHERE vim_uuid = '{vim_uuid}';"
+            cursor.execute(query_wim)
+            resp = cursor.fetchall()
+            LOG.debug(f"query_wim: {resp}")
+            # TODO Check resp len || multiple wims for a vim?
+            wim_uuid = resp[0][0]
+            query_endpoint = f"SELECT (endpoint) FROM wim WHERE uuid = '{wim_uuid}';"
+            cursor.execute(query_endpoint)
+            resp= cursor.fetchall()
+            LOG.debug(f"query_endpoint: {resp}")
+            wim_endpoint = resp[0][0]
+            self.wtapi_ledger[service_instance_id]['wim'] = {
+                'uuid': wim_uuid,
+                'ip': wim_endpoint,
+                'port': 8182
+            }
+            return {'result': True, 'message': f'wimregistry deleted for {service_instance_id}'}
+        except (Exception, psycopg2.Error) as error:
+            LOG.error(error)
+            exception_message = str(error)
+            return {'result': False, 'message': f'error deleting {service_instance_id}', 'error': exception_message}
+        finally:
+            # closing database connection.
+            if connection:
+                cursor.close()
+                connection.close()
 
     def get_vim_info(self, service_instance_id):
         """
@@ -259,11 +349,12 @@ class TapiWrapper(object):
         ingress_list = self.wtapi_ledger[service_instance_id]['ingresses']
         egress_list = self.wtapi_ledger[service_instance_id]['egresses']
         vim_name = self.wtapi_ledger[service_instance_id]['vim_name']
-        egress_sip = self.engine.get_sip_by_name(vim_name)
+        wim = self.wtapi_ledger[service_instance_id]['wim']
+        egress_sip = self.engine.get_sip_by_name(wim, vim_name)
         self.wtapi_ledger[service_instance_id]['active_connectivity_services'] = []
         connectivity_services = []
         for ingress_point in ingress_list:
-            ingress_sip = self.engine.get_sip_by_name(ingress_point['location'])
+            ingress_sip = self.engine.get_sip_by_name(wim, ingress_point['location'])
             for egress_point in egress_list:
                 # Creating unidirectional flows per each sip
                 # TODO: add latency param
@@ -288,7 +379,7 @@ class TapiWrapper(object):
         # TODO: Flow to vrouter <- Provided by IA?
         for connectivity_service in connectivity_services:
             try:
-                self.engine.create_connectivity_service(connectivity_service)
+                self.engine.create_connectivity_service(wim, connectivity_service)
                 self.wtapi_ledger[service_instance_id]['active_connectivity_services'].append(
                     connectivity_service['uuid'])
 
@@ -314,9 +405,10 @@ class TapiWrapper(object):
         :return:
         """
         LOG.debug('Network Service {}: Removing virtual links'.format(service_instance_id))
+        wim = self.wtapi_ledger[service_instance_id]['wim']
         if 'active_connectivity_services' in self.wtapi_ledger[service_instance_id].keys():
             for cs_uuid in self.wtapi_ledger[service_instance_id]['active_connectivity_services']:
-                self.engine.remove_connectivity_service(cs_uuid)
+                self.engine.remove_connectivity_service(wim, cs_uuid)
             self.wtapi_ledger[service_instance_id]['active_connectivity_services'] = []
         else:
             LOG.warning('Requested virtual_links_remove for {} but there are no active connections'.format(
@@ -344,13 +436,13 @@ class TapiWrapper(object):
 
             response = {
                 'error': error,
-                'status': 'ERROR'
+                'request_status': 'ERROR'
             }
             msg = ' Response on create request: ' + str(response)
             LOG.info('Service ' + str(service_instance_id) + msg)
             self.manoconn.notify(topics.WAN_CONFIGURE,
                                  yaml.dump(response),
-                                 correlation_id=corr_id)
+                                 correlation_id=properties.correlation_id)
 
         # Don't trigger on self created messages
         if self.name == properties.app_id:
@@ -361,8 +453,7 @@ class TapiWrapper(object):
         message = yaml.load(payload)
 
         # Check if payload and properties are ok
-        corr_id = properties.correlation_id
-        if corr_id is None:
+        if properties.correlation_id is None:
             error = 'No correlation id provided in header of request'
             send_error_response(error, None)
             return
@@ -370,13 +461,26 @@ class TapiWrapper(object):
             error = 'Payload is not a dictionary'
             send_error_response(error, None)
             return
+        # if all({'service_instance_id', 'nap', 'vim_list', 'qos_parameters'}) not in message.keys():
+        #     error = 'Payload should contain "service_instance_id", "wim_uuid", "nap", "vim_list", "qos_parameters"'
+        #     send_error_response(error, None)
+        #     return
+        expected_keys = {'service_instance_id', 'nap', 'vim_list',}
+        # expected_keys = {'service_instance_id', 'nap', 'vim_list', 'qos_parameters'}
+        if not all(key in message.keys() for key in expected_keys):
+            error = f'Payload should contain {expected_keys}'
+            LOG.error(message.keys())
+            send_error_response(error, None)
+            return
 
         service_instance_id = message['service_instance_id']
 
         # Schedule the tasks that the Wrapper should do for this request.
         add_schedule =[
+            'get_wim_info',
             'get_vim_info',
             'virtual_links_create',
+            'insert_reference_database',
             'respond_to_request'
         ]
 
@@ -388,11 +492,12 @@ class TapiWrapper(object):
             'egresses': message['nap']['egresses'],
             'ingresses': message['nap']['ingresses'],
             'vim_list': message['vim_list'],
+            'wim': {},
             'QoS':{'requested_banwidth': None, 'RTT': None},
             'status': 'INIT',
             'kill_service': False,
             'schedule': [],
-            'orig_corr_id': corr_id,
+            'orig_corr_id': properties.correlation_id,
             'topic': properties.reply_to,
             'error': None,
             'message': None
@@ -417,26 +522,36 @@ class TapiWrapper(object):
 
             response = {
                 'error': error,
-                'status': 'ERROR'
+                'request_status': 'ERROR'
             }
             msg = ' Response on remove request: ' + str(response)
             LOG.info('Service ' + str(service_instance_id) + msg)
             self.manoconn.notify(topics.WAN_DECONFIGURE,
                                  yaml.dump(response),
-                                 correlation_id=corr_id)
+                                 correlation_id=properties.correlation_id)
 
         # Don't trigger on self created messages
         if self.name == properties.app_id:
             return
-
         LOG.info("WAN deconfigure request received.")
         LOG.debug('Parameters:channel:{},method:{},properties:{},payload:{}'.format(ch, method, properties, payload))
-
         message = yaml.load(payload)
 
+        if not isinstance(message, dict):
+            error = 'Payload is not a dictionary'
+            send_error_response(error, None)
+            return
+        if 'service_instance_id' not in message.keys():
+            error = 'Payload should contain "service_instance_id"'
+            send_error_response(error, None)
+            return
+
+
+
+
+
         # Check if payload and properties are ok.
-        corr_id = properties.correlation_id
-        if corr_id is None:
+        if properties.correlation_id is None:
             error = 'No correlation id provided in header of request'
             send_error_response(error, None)
             return
@@ -452,10 +567,13 @@ class TapiWrapper(object):
         add_schedule = [
             'virtual_links_remove',
             'respond_to_request',
+            'delete_reference_database',
             'clean_ledger'
         ]
 
         self.wtapi_ledger[service_instance_id]['schedule'].extend(add_schedule)
+        self.wtapi_ledger[service_instance_id]['topic'] = properties.reply_to
+        self.wtapi_ledger[service_instance_id]['orig_corr_id'] = properties.correlation_id
 
         msg = "Network service remove request received."
         LOG.info("Network Service {}: {}".format(service_instance_id, msg))
@@ -497,9 +615,9 @@ class TapiWrapper(object):
         }
 
         if self.wtapi_ledger[service_instance_id]['error'] is None:
-            message["status"] = "COMPLETED"
+            message["request_status"] = "COMPLETED"
         else:
-            message["status"] = "FAILED"
+            message["request_status"] = "FAILED"
 
         if self.wtapi_ledger[service_instance_id]['message'] is not None:
             message["message"] = self.wtapi_ledger[service_instance_id]['message']
