@@ -236,7 +236,7 @@ class TapiWrapper(object):
             cursor = connection.cursor()
             wim_uuid = self.wtapi_ledger[service_instance_id]['wim_uuid']
             query = f"INSERT INTO service_instances (instance_uuid, wim_uuid) VALUES " \
-                    f"({service_instance_id}, {wim_uuid});"
+                    f"('{service_instance_id}', '{wim_uuid}');"
             cursor.execute(query)
             resp = cursor.fetchall()
             LOG.debug(resp)
@@ -311,7 +311,7 @@ class TapiWrapper(object):
                 'ip': wim_endpoint,
                 'port': 8182
             }
-            return {'result': True, 'message': f'wimregistry deleted for {service_instance_id}'}
+            return {'result': True, 'message': f'got wim {wim_uuid} for {service_instance_id}'}
         except (Exception, psycopg2.Error) as error:
             LOG.error(error)
             exception_message = str(error)
