@@ -27,5 +27,6 @@ partner consortium (www.5gtango.eu).
 """
 # List of topics that are used by the TAPI Wrapper for its rabbitMQ communication
 
-WAN_CONFIGURE = 'infrastructure.tapi.service.wan.configure' #Configure WAN for service instance
-WAN_DECONFIGURE = 'infrastructure.tapi.service.wan.deconfigure' #Deconfigure WAN for service instance
+WAN_CAPABILITIES = 'infrastructure.tapi.management.wan.list'  # Request for capabilities to decide best WIM
+WAN_CONFIGURE = 'infrastructure.tapi.service.wan.configure'  # Configure WAN for service instance
+WAN_DECONFIGURE = 'infrastructure.tapi.service.wan.deconfigure'  # Deconfigure WAN for service instance
