@@ -250,7 +250,7 @@ class TapiWrapperEngine(object):
     def remove_connectivity_service(self, wim_host, uuid):
         LOG.debug('TapiWrapper: Removing connectivity service {}'.format(uuid))
         tapi_cs_url = f'http://{wim_host}/restconf/config/context/connectivity-service/{uuid}/'
-        headers = {'Accept': 'application/json'}
+        headers = {'Accept': 'application/json', 'Content-type': 'application/json'}
         try:
             response = requests.delete(tapi_cs_url, headers=headers)
         except Exception as e:
@@ -261,10 +261,42 @@ class TapiWrapperEngine(object):
             else:
                 raise ConnectionError({'msg': response.text, 'code': response.status_code})
 
+    def get_sip_inventory(self, wim_host):
+        tapi_sip_url = f'http://{wim_host}/restconf/config/context/service-interface-point/'
+        headers = {'Accept': 'application/json', 'Content-type': 'application/json'}
+        try:
+            response = requests.get(tapi_sip_url, headers=headers)
+        except Exception as e:
+            raise e
+        else:
+            if 200 <= response.status_code < 300:
+                sip_list = response.json()
+                return sip_list
+            else:
+                raise ConnectionError({'msg': response.text, 'code': response.status_code})
+
     def get_sip_by_name(self, wim_host, name):
         tapi_sip_url = f'http://{wim_host}/restconf/config/context/service-interface-point/'
-        sip_list = requests.get(tapi_sip_url).json()
-        return list(filter(lambda x: x['name']['value-name'] == name, sip_list))[0]
+        headers = {'Accept': 'application/json', 'Content-type': 'application/json'}
+        try:
+            response = requests.get(tapi_sip_url, headers=headers)
+        except Exception as e:
+            raise e
+        else:
+            if 200 <= response.status_code < 300:
+                sip_list = response.json()
+            else:
+                raise ConnectionError({'msg': response.text, 'code': response.status_code})
+        filtered_sip = [sip for sip in sip_list for sip_name in sip['name'] if sip_name['value-name'] == name]
+        if len(filtered_sip) == 1:
+            return filtered_sip[0]
+        elif len(filtered_sip) == 0:
+            msg = f'Sip {name} not found in vim {wim_host}'
+            LOG.error(msg)
+            raise ValueError(msg)
+        else:
+            LOG.warning(f'Sip {name} was found more than once in vim {wim_host}')
+            return filtered_sip[0]
 
 
 test = TapiWrapperEngine()
