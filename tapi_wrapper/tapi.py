@@ -135,8 +135,8 @@ class TapiWrapper(object):
         """
         Declare topics that WTAPI subscribes on.
         """
-        # # The topic on which wim domain capabilities are updated
-        # self.manoconn.subscribe(self, topics.WAN_CONFIGURE)
+        # The topic on which wim domain capabilities are updated
+        self.manoconn.subscribe(self.wan_list_capabilites, topics.WAN_CONFIGURE)
 
         # The topic on which configure requests are posted.
         self.manoconn.subscribe(self.wan_network_configure, topics.WAN_CONFIGURE)
@@ -284,10 +284,7 @@ class TapiWrapper(object):
             return [endpoint['uuid'] for endpoint in filtered_endpoints]
         except (Exception, psycopg2.Error) as error:
             LOG.error(error)
-            if 'filtered_endpoints' in vars():
-                return [endpoint['uuid'] for endpoint in filtered_endpoints]
-            else:
-                return []
+            return []
         finally:
             # closing database connection.
             if cursor:
@@ -323,6 +320,7 @@ class TapiWrapper(object):
             return [endpoint['uuid'] for endpoint in filtered_endpoints]
         except (Exception, psycopg2.Error) as error:
             LOG.error(error)
+            return []
         finally:
             # closing database connection.
             if cursor:
@@ -583,7 +581,7 @@ class TapiWrapper(object):
             resp = cursor.fetchall()
             LOG.debug(f"response_ingress: {resp}")
             # TODO Check resp len || multiple wims for a vim?
-            ingress_name = resp[0][1]  # Name is used to correlate with sips
+            ingress_name = resp[0][0]  # Name is used to correlate with sips
             ingress_type = resp[0][1]
             query_egress = f"SELECT name, type FROM vim WHERE uuid = '{egress_endpoint_uuid}';"
             LOG.debug(f"query_egress: {query_ingress}")
@@ -872,6 +870,8 @@ class TapiWrapper(object):
                 'schedule': schedule,
                 'topic': properties.reply_to,
             }
+        else:
+            raise KeyError('Duplicated virtual_link_uuid')
 
         msg = "New virtual link request received. Creating flows..."
         LOG.info(f"NS {service_instance_id}, VL:{virtual_link_id}: {msg}")
@@ -961,6 +961,51 @@ class TapiWrapper(object):
         self.start_next_task(virtual_link_uuid)
 
         return
+
+    def wan_list_capabilites(self, ch, method, properties, payload):
+        """
+
+        :param ch:
+        :param method:
+        :param properties:
+        :param payload:
+        :return:
+        """
+        def send_error_response(error, virtual_link_uuid):
+
+            response = {
+                'message': error,
+                'request_status': 'ERROR'
+            }
+            msg = ' Response on create request: ' + str(response)
+            LOG.info('Virtual link ' + str(virtual_link_uuid) + msg)
+            self.manoconn.notify(topics.WAN_CONFIGURE,
+                                 yaml.dump(response),
+                                 correlation_id=properties.correlation_id)
+
+        # Don't trigger on self created messages
+        if self.name == properties.app_id:
+            return
+
+        LOG.info('infrastructure.tapi.management.wan.list message received')
+        LOG.debug(f'Parameters:properties:{properties.__dict__},payload:{payload}')
+        message = yaml.load(payload)
+        LOG.debug(f'Serialized payload in python: {message}')
+
+        # Check if payload and properties are ok
+        if properties.correlation_id is None:
+            error = 'No correlation id provided in header of request'
+            send_error_response(error, None)
+            return
+        if not isinstance(message, dict):
+            error = 'Payload is not a dictionary'
+            send_error_response(error, None)
+            return
+        # if all({'service_instance_id', 'nap', 'vim_list', 'qos_parameters'}) not in message.keys():
+        #     error = 'Payload should contain "service_instance_id", "wim_uuid", "nap", "vim_list", "qos_parameters"'
+        #     send_error_response(error, None)
+        #     return
+
 
 
     def respond_to_request(self, virtual_link_uuid):

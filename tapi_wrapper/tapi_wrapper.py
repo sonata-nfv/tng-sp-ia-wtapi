@@ -291,11 +291,11 @@ class TapiWrapperEngine(object):
         if len(filtered_sip) == 1:
             return filtered_sip[0]
         elif len(filtered_sip) == 0:
-            msg = f'Sip {name} not found in vim {wim_host}'
+            msg = f'Sip {name} not found in wim {wim_host}'
             LOG.error(msg)
             raise ValueError(msg)
         else:
-            LOG.warning(f'Sip {name} was found more than once in vim {wim_host}')
+            LOG.warning(f'Sip {name} was found more than once in wim {wim_host}')
             return filtered_sip[0]
 
 
