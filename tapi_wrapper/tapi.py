@@ -272,15 +272,18 @@ class TapiWrapper(object):
             db_endpoints = set([e[0] for e in cursor.fetchall()])
             LOG.debug(f"Filtering {db_endpoints} to avoid duplicates")
             filtered_endpoints = [endpoint for endpoint in endpoint_list if endpoint['name'] not in db_endpoints]
-            query = f"INSERT INTO vim (uuid, type, vendor, city, country, name, endpoint, username, domain, " \
-                    f"configuration, pass, authkey) VALUES "
-            for endpoint in filtered_endpoints:
-                query += f"('{endpoint['uuid']}','endpoint','endpoint','','','{endpoint['name']}','','',''," \
-                         f"'{{}}','',''),"
-            query = query[:-1] + ';'
-            LOG.debug(f'Populating DB query: {query}')
-            cursor.execute(query)
-            connection.commit()
+            if filtered_endpoints:
+                query = f"INSERT INTO vim (uuid, type, vendor, city, country, name, endpoint, username, domain, " \
+                        f"configuration, pass, authkey) VALUES "
+                for endpoint in filtered_endpoints:
+                    query += f"('{endpoint['uuid']}','endpoint','endpoint','','','{endpoint['name']}','','',''," \
+                             f"'{{}}','',''),"
+                query = query[:-1] + ';'
+                LOG.debug(f'Populating DB query: {query}')
+                cursor.execute(query)
+                connection.commit()
+            else:
+                LOG.debug('No new endpoints')
             return [endpoint['uuid'] for endpoint in filtered_endpoints]
         except (Exception, psycopg2.Error) as error:
             LOG.error(error)
@@ -308,16 +311,21 @@ class TapiWrapper(object):
             cursor.execute(safety_query)
             db_endpoints = set([e[0] for e in cursor.fetchall()])
             LOG.debug(f"Filtering {db_endpoints} to avoid duplicates")
-            filtered_endpoints = [endpoint for endpoint in endpoint_list if endpoint['vim_uuid'] not in db_endpoints and endpoint['vim_uuid'] in new_endpoint_list]
-            LOG.debug(f"Attaching {filtered_endpoints} after filter")
-            query = f"INSERT INTO attached_vim (vim_uuid, vim_address, wim_uuid) VALUES "
-            for endpoint in filtered_endpoints:
-                query += f"('{endpoint['vim_uuid']}', '{endpoint['vim_endpoint']}', '{endpoint['wim_uuid']}'),"
-            query = query[:-1] + ';'
-            LOG.debug(f'Attaching WIMs query: {query}')
-            cursor.execute(query)
-            connection.commit()
-            return [endpoint['uuid'] for endpoint in filtered_endpoints]
+            filtered_endpoints = [
+                endpoint for endpoint in endpoint_list
+                if endpoint['vim_uuid'] not in db_endpoints and endpoint['vim_uuid'] in new_endpoint_list]
+            if filtered_endpoints:
+                LOG.debug(f"Attaching {filtered_endpoints} after filter")
+                query = f"INSERT INTO attached_vim (vim_uuid, vim_address, wim_uuid) VALUES "
+                for endpoint in filtered_endpoints:
+                    query += f"('{endpoint['vim_uuid']}', '{endpoint['vim_endpoint']}', '{endpoint['wim_uuid']}'),"
+                query = query[:-1] + ';'
+                LOG.debug(f'Attaching WIMs query: {query}')
+                cursor.execute(query)
+                connection.commit()
+            else:
+                LOG.debug('No new endpoints')
+            return [endpoint['vim_uuid'] for endpoint in filtered_endpoints]
         except (Exception, psycopg2.Error) as error:
             LOG.error(error)
             return []
@@ -742,7 +750,11 @@ class TapiWrapper(object):
             if 'active_connectivity_services' in self.wtapi_ledger[rel_virtual_link_id].keys():
                 conn_services_to_remove.extend(
                     [
-                        {'cs_uuid': cs_uuid, 'vl_uuid': rel_virtual_link_id, 'wim_host': self.wtapi_ledger[rel_virtual_link_id]['wim']['host']}
+                        {
+                            'cs_uuid': cs_uuid,
+                            'vl_uuid': rel_virtual_link_id,
+                            'wim_host': self.wtapi_ledger[rel_virtual_link_id]['wim']['host']
+                        }
                         for cs_uuid in self.wtapi_ledger[rel_virtual_link_id]['active_connectivity_services']
                     ]
                 )
@@ -922,15 +934,6 @@ class TapiWrapper(object):
 
         service_instance_id = message['service_instance_id']
 
-        # Only one vl_id comming now
-        # if 'vl_id' in message.keys():
-        #     if isinstance(message['vl_id'], list):
-        #         virtual_links = message['vl_id']
-        #     else:
-        #         virtual_links = [message['vl_id']]
-        # else:
-        #     virtual_links = [virtual_link for virtual_link in self.wtapi_ledger if virtual_link['service_instance_id'] == service_instance_id]
-
         virtual_link_uuid_list = [
             self.wtapi_ledger[virtual_link]['uuid'] for virtual_link in self.wtapi_ledger
             if self.wtapi_ledger[virtual_link]['vl_id'] == message['vl_id'] and
@@ -938,7 +941,7 @@ class TapiWrapper(object):
         ]
         try:
             virtual_link_uuid = virtual_link_uuid_list[0]
-            self.wtapi_ledger[virtual_link_uuid]['related_cs_sets'] = virtual_link_uuid_list  # Link other virtual_links related by service_instance_id
+            self.wtapi_ledger[virtual_link_uuid]['related_cs_sets'] = virtual_link_uuid_list
         except Exception as e:
             send_error_response(e, None)
             return
