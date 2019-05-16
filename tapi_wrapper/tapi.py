@@ -698,7 +698,7 @@ class TapiWrapper(object):
                 layer='MPLS', direction='UNIDIRECTIONAL',
                 requested_capacity=requested_capacity, latency=requested_latency),
             self.engine.generate_cs_from_nap_pair(
-                ingress_nap, egress_nap,
+                egress_nap, ingress_nap,
                 egress_sip_uuid, ingress_sip_uuid,
                 layer='MPLS', direction='UNIDIRECTIONAL',
                 requested_capacity=requested_capacity, latency=requested_latency),
@@ -708,7 +708,7 @@ class TapiWrapper(object):
                 layer='MPLS_ARP', direction='UNIDIRECTIONAL',
                 requested_capacity=requested_capacity, latency=requested_latency),
             self.engine.generate_cs_from_nap_pair(
-                ingress_nap, egress_nap,
+                egress_nap, ingress_nap,
                 egress_sip_uuid, ingress_sip_uuid,
                 layer='MPLS_ARP', direction='UNIDIRECTIONAL',
                 requested_capacity=requested_capacity, latency=requested_latency),
