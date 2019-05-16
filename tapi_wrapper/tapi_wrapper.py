@@ -117,6 +117,8 @@ class TapiWrapperEngine(object):
         :param requested_capacity:
         :return call:
         """
+        LOG.debug(f'generate_cs_from_nap_pair: ingress={ingress_ep[:8]}@{ingress_nap}, egress={egress_ep[:8]}@{egress_nap}, '
+                  f'layer={layer}, cap={requested_capacity}, latency={latency}')
         allowed_layer = {'ETH', 'MPLS'}
         special_layer = {'MPLS_ARP'}
         allowed_direction = {'UNIDIRECTIONAL', 'BIDIRECTIONAL'}
@@ -236,7 +238,7 @@ class TapiWrapperEngine(object):
         :param cs:
         :return:
         """
-        LOG.debug(f'TapiWrapper: Creating connectivity service {cs["uuid"]} from {cs["end-point"][0]} to {cs["end-point"][1]}')
+        LOG.debug(f'TapiWrapper: Creating connectivity service {cs["uuid"]}')
         tapi_cs_url = f'http://{wim_host}/restconf/config/context/connectivity-service/{cs["uuid"]}/'
         headers = {'Content-type': 'application/json'}
         try:
