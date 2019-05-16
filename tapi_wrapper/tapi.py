@@ -380,7 +380,7 @@ class TapiWrapper(object):
 
                 result = next_task(virtual_link_uuid)
                 LOG.debug(f'Virtual link #{virtual_link_uuid} of Network Service #{ns_uuid}: '
-                          f'Task finished, result: {result}')
+                          f'Task {scheduled} finished, result: {result}')
 
                 # Log if a task fails
                 # if task.exception() is not None:
@@ -592,7 +592,7 @@ class TapiWrapper(object):
             ingress_name = resp[0][0]  # Name is used to correlate with sips
             ingress_type = resp[0][1]
             query_egress = f"SELECT name, type FROM vim WHERE uuid = '{egress_endpoint_uuid}';"
-            LOG.debug(f"query_egress: {query_ingress}")
+            LOG.debug(f"query_egress: {query_egress}")
             cursor.execute(query_egress)
             resp = cursor.fetchall()
             LOG.debug(f"response_egress: {resp}")
@@ -645,8 +645,8 @@ class TapiWrapper(object):
         egress_name = self.wtapi_ledger[virtual_link_uuid]['egress']['name']
         ingress_sip = self.engine.get_sip_by_name(wim_host, ingress_name)
         egress_sip = self.engine.get_sip_by_name(wim_host, egress_name)
-        self.wtapi_ledger[virtual_link_uuid]['ingress']['sip'] = ingress_sip['name']  # value-name and value
-        self.wtapi_ledger[virtual_link_uuid]['egress']['sip'] = egress_sip['name']
+        self.wtapi_ledger[virtual_link_uuid]['ingress']['sip'] = ingress_sip['uuid']  # value-name and value
+        self.wtapi_ledger[virtual_link_uuid]['egress']['sip'] = egress_sip['uuid']
         return {
             'result': True,
             'message': f'got ingress {ingress_name} and egress {egress_name} sip match for {virtual_link_uuid}',
@@ -664,10 +664,16 @@ class TapiWrapper(object):
         # TODO now there is only one ingress and one egress
         # TODO: add latency param and qos in general if it's included in the request
         wim_host = self.wtapi_ledger[virtual_link_uuid]['wim']['host']
-        ingress_nap = self.wtapi_ledger[virtual_link_uuid]['ingress']['nap']
-        ingress_sip = self.wtapi_ledger[virtual_link_uuid]['ingress']['sip']
-        egress_nap = self.wtapi_ledger[virtual_link_uuid]['egress']['nap']
-        egress_sip = self.wtapi_ledger[virtual_link_uuid]['egress']['sip']
+        if len(self.wtapi_ledger[virtual_link_uuid]['ingress']['nap'].split('/')) == 2:
+            ingress_nap = self.wtapi_ledger[virtual_link_uuid]['ingress']['nap']
+        else:
+            ingress_nap = '/'.join([self.wtapi_ledger[virtual_link_uuid]['ingress']['nap'], '32'])
+        ingress_sip_uuid = self.wtapi_ledger[virtual_link_uuid]['ingress']['sip']
+        if len(self.wtapi_ledger[virtual_link_uuid]['egress']['nap'].split('/')) == 2:
+            egress_nap = self.wtapi_ledger[virtual_link_uuid]['egress']['nap']
+        else:
+            egress_nap = '/'.join([self.wtapi_ledger[virtual_link_uuid]['egress']['nap'], '32'])
+        egress_sip_uuid = self.wtapi_ledger[virtual_link_uuid]['egress']['sip']
         if 'qos' in self.wtapi_ledger[virtual_link_uuid]:
             if 'bandwidth' in self.wtapi_ledger[virtual_link_uuid]['qos']:
                 requested_capacity = float(self.wtapi_ledger[virtual_link_uuid]['qos']['bandwidth']) * 1e6
@@ -681,30 +687,33 @@ class TapiWrapper(object):
             # Best effort
             requested_capacity = 5e6
             requested_latency = None
-
+        LOG.debug(f'Parameters for VL_CREATE: wim={wim_host}, ingress_nap={ingress_nap}, ingress_sip={ingress_sip_uuid}, '
+                  f'egress_nap={egress_nap}, egress_sip={egress_sip_uuid}, '
+                  f'requested_capacity={requested_capacity}, requested_latency={requested_latency}')
         self.wtapi_ledger[virtual_link_uuid]['active_connectivity_services'] = []
         connectivity_services = [
             self.engine.generate_cs_from_nap_pair(
                 ingress_nap, egress_nap,
-                ingress_sip['value'], egress_sip['value'],
+                ingress_sip_uuid, egress_sip_uuid,
                 layer='MPLS', direction='UNIDIRECTIONAL',
                 requested_capacity=requested_capacity, latency=requested_latency),
             self.engine.generate_cs_from_nap_pair(
                 ingress_nap, egress_nap,
-                egress_sip['value'], ingress_sip['value'],
+                egress_sip_uuid, ingress_sip_uuid,
                 layer='MPLS', direction='UNIDIRECTIONAL',
                 requested_capacity=requested_capacity, latency=requested_latency),
             self.engine.generate_cs_from_nap_pair(
                 ingress_nap, egress_nap,
-                ingress_sip['value'], egress_sip['value'],
+                ingress_sip_uuid, egress_sip_uuid,
                 layer='MPLS_ARP', direction='UNIDIRECTIONAL',
                 requested_capacity=requested_capacity, latency=requested_latency),
             self.engine.generate_cs_from_nap_pair(
                 ingress_nap, egress_nap,
-                egress_sip['value'], ingress_sip['value'],
+                egress_sip_uuid, ingress_sip_uuid,
                 layer='MPLS_ARP', direction='UNIDIRECTIONAL',
                 requested_capacity=requested_capacity, latency=requested_latency),
         ]
+
         for connectivity_service in connectivity_services:
             try:
                 self.engine.create_connectivity_service(wim_host, connectivity_service)

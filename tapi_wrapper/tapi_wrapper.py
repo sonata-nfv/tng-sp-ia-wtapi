@@ -121,23 +121,25 @@ class TapiWrapperEngine(object):
         special_layer = {'MPLS_ARP'}
         allowed_direction = {'UNIDIRECTIONAL', 'BIDIRECTIONAL'}
         if direction not in allowed_direction:
-            raise ValueError('Direction {} must be one of {}'.format(direction, allowed_direction))
+            err_msg = f'Direction {direction} must be one of {allowed_direction}'
+            LOG.error(err_msg)
+            raise ValueError(err_msg)
         if not (layer in allowed_layer or layer in special_layer):
+
             raise ValueError('Layer {} must be one of {}'.format(layer, allowed_layer.union(special_layer)))
         if layer == 'ETH' or (layer == 'MPLS' and direction == 'UNIDIRECTIONAL'):
+            LOG.debug(f'Generating {layer} cs #{self.index}')
             connectivity_service = {
                 "uuid": str(self.index),
                 "end-point": [
                     {
-                        "service-interface-point": "/restconf/config/context/service-interface-point/{}/".format(
-                            ingress_ep),
+                        "service-interface-point": f"/restconf/config/context/service-interface-point/{ingress_ep}/",
                         "direction": "BIDIRECTIONAL",
                         "layer-protocol-name": "ETH",
                         "role": "SYMMETRIC"
                     },
                     {
-                        "service-interface-point": "/restconf/config/context/service-interface-point/{}/".format(
-                            egress_ep),
+                        "service-interface-point": f"/restconf/config/context/service-interface-point/{egress_ep}/",
                         "direction": "BIDIRECTIONAL",
                         "layer-protocol-name": "ETH",
                         "role": "SYMMETRIC"
@@ -158,19 +160,18 @@ class TapiWrapperEngine(object):
                 }
             }
         elif layer == 'ARP':
+            LOG.debug(f'Generating {layer} cs #{self.index}')
             connectivity_service = {
                 "uuid": str(self.index),
                 "end-point": [
                     {
-                        "service-interface-point": "/restconf/config/context/service-interface-point/{}/".format(
-                            ingress_ep),
+                        "service-interface-point": f"/restconf/config/context/service-interface-point/{ingress_ep}/",
                         "direction": "BIDIRECTIONAL",
                         "layer-protocol-name": "ETH",
                         "role": "SYMMETRIC"
                     },
                     {
-                        "service-interface-point": "/restconf/config/context/service-interface-point/{}/".format(
-                            egress_ep),
+                        "service-interface-point": f"/restconf/config/context/service-interface-point/{egress_ep}/",
                         "direction": "BIDIRECTIONAL",
                         "layer-protocol-name": "ETH",
                         "role": "SYMMETRIC"
@@ -191,19 +192,18 @@ class TapiWrapperEngine(object):
                 }
             }
         elif layer == 'MPLS_ARP' and direction == 'UNIDIRECTIONAL':
+            LOG.debug(f'Generating {layer} cs #{self.index}')
             connectivity_service = {
                 "uuid": str(self.index),
                 "end-point": [
                     {
-                        "service-interface-point": "/restconf/config/context/service-interface-point/{}/".format(
-                            ingress_ep),
+                        "service-interface-point": f"/restconf/config/context/service-interface-point/{ingress_ep}/",
                         "direction": "BIDIRECTIONAL",
                         "layer-protocol-name": "ETH",
                         "role": "SYMMETRIC"
                     },
                     {
-                        "service-interface-point": "/restconf/config/context/service-interface-point/{}/".format(
-                            egress_ep),
+                        "service-interface-point": f"/restconf/config/context/service-interface-point/{egress_ep}/",
                         "direction": "BIDIRECTIONAL",
                         "layer-protocol-name": "ETH",
                         "role": "SYMMETRIC"
@@ -224,7 +224,8 @@ class TapiWrapperEngine(object):
                 }
             }
         else:
-            raise AttributeError('Layer {} is not compatible with direction {}'.format(layer, direction))
+            raise AttributeError(f'Layer {layer} is not compatible with direction {direction}')
+        LOG.debug(f'finished cs #{self.index} creation')
         self.index += 1
         return connectivity_service
 
@@ -234,7 +235,7 @@ class TapiWrapperEngine(object):
         :param cs:
         :return:
         """
-        LOG.debug('TapiWrapper: Creating connectivity service {}'.format(cs['uuid']))
+        LOG.debug(f'TapiWrapper: Creating connectivity service {cs["uuid"]}')
         tapi_cs_url = f'http://{wim_host}/restconf/config/context/connectivity-service/{cs["uuid"]}/'
         headers = {'Content-type': 'application/json'}
         try:
