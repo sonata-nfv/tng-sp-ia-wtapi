@@ -312,8 +312,8 @@ class TapiWrapper(object):
             db_endpoints = set([e[0] for e in cursor.fetchall()])
             LOG.debug(f"Filtering {db_endpoints} to avoid duplicates")
             filtered_endpoints = [
-                endpoint for endpoint in endpoint_list
-                if endpoint['vim_uuid'] not in db_endpoints and endpoint['vim_uuid'] in new_endpoint_list]
+                endpoint for endpoint in endpoint_list]
+                # if endpoint['vim_uuid'] not in db_endpoints and endpoint['vim_uuid'] in new_endpoint_list]
             if filtered_endpoints:
                 LOG.debug(f"Attaching {filtered_endpoints} after filter")
                 query = f"INSERT INTO attached_vim (vim_uuid, vim_address, wim_uuid) VALUES "
@@ -674,7 +674,7 @@ class TapiWrapper(object):
         else:
             egress_nap = '/'.join([self.wtapi_ledger[virtual_link_uuid]['egress']['nap'], '32'])
         egress_sip_uuid = self.wtapi_ledger[virtual_link_uuid]['egress']['sip']
-        if 'qos' in self.wtapi_ledger[virtual_link_uuid]:
+        if 'qos' in self.wtapi_ledger[virtual_link_uuid] and self.wtapi_ledger[virtual_link_uuid]['qos']:
             if 'bandwidth' in self.wtapi_ledger[virtual_link_uuid]['qos']:
                 requested_capacity = float(self.wtapi_ledger[virtual_link_uuid]['qos']['bandwidth']) * 1e6
             else:
@@ -896,8 +896,12 @@ class TapiWrapper(object):
 
         msg = "New virtual link request received. Creating flows..."
         LOG.info(f"NS {service_instance_id}, VL:{virtual_link_id}: {msg}")
-        # Start the chain of tasks
-        self.start_next_task(virtual_link_uuid)
+
+        if message['egress']['location'] == message['ingress']['location']:
+            self.respond_to_request(virtual_link_uuid)
+        else:
+            # Start the chain of tasks
+            self.start_next_task(virtual_link_uuid)
 
         return self.wtapi_ledger[virtual_link_uuid]['schedule']
 
