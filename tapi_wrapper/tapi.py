@@ -136,15 +136,16 @@ class TapiWrapper(object):
         Declare topics that WTAPI subscribes on.
         """
         # The topic on which wim domain capabilities are updated
-        self.manoconn.subscribe(self.wan_list_capabilites, topics.WAN_CONFIGURE)
+        self.manoconn.subscribe(self.wan_list_capabilites, topics.WAN_CAPABILITIES)
+        LOG.info(f"Subscription to {topics.WAN_CAPABILITIES} created")
 
         # The topic on which configure requests are posted.
         self.manoconn.subscribe(self.wan_network_configure, topics.WAN_CONFIGURE)
-        LOG.info("Subscription to {} created".format(topics.WAN_CONFIGURE))
+        LOG.info(f"Subscription to {topics.WAN_CONFIGURE} created")
 
         # The topic on which release requests are posted.
         self.manoconn.subscribe(self.wan_network_deconfigure, topics.WAN_DECONFIGURE)
-        LOG.info("Subscription to {} created".format(topics.WAN_DECONFIGURE))
+        LOG.info(f"Subscription to {topics.WAN_DECONFIGURE} created")
 
     #############################
     # TAPI Wrapper STARTUP
@@ -894,13 +895,15 @@ class TapiWrapper(object):
         else:
             raise KeyError('Duplicated virtual_link_uuid')
 
-        msg = "New virtual link request received. Creating flows..."
-        LOG.info(f"NS {service_instance_id}, VL:{virtual_link_id}: {msg}")
-
         if message['egress']['location'] == message['ingress']['location']:
+            LOG.info(f"NS {service_instance_id}, VL:{virtual_link_id}: "
+                     f"egress {message['egress']['location']} AND "
+                     f"ingress {message['ingress']['location']} are the same endpoint, aborting")
             self.respond_to_request(virtual_link_uuid)
         else:
             # Start the chain of tasks
+            msg = "New virtual link request received. Creating flows..."
+            LOG.info(f"NS {service_instance_id}, VL:{virtual_link_id}: {msg}")
             self.start_next_task(virtual_link_uuid)
 
         return self.wtapi_ledger[virtual_link_uuid]['schedule']

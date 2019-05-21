@@ -9,5 +9,5 @@ TAPI Wrapper: Component in the SONATA framework that is responsible to manage th
 ## Implementation
 
 * implemented in Python 3.6
-* dependecies: amqp-storm
+* dependecies: amqp-storm, psycopg2
 * The main implementation can be found in: `tng-sp-ia-wtapi/tapi_wrapper/tapi.py`

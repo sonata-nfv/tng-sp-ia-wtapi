@@ -73,7 +73,8 @@ setup(
         'requests',
         'pycodestyle',
         'coloredlogs',
-        'psycopg2',
+    #    'psycopg2',
+        'psycopg2-binary',
     ],
     setup_requires=['pytest-runner'],
 
