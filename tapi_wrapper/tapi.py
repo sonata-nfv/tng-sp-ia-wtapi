@@ -207,7 +207,7 @@ class TapiWrapper(object):
                                           port="5432",
                                           database="wimregistry")
             cursor = connection.cursor()
-            query = "SELECT uuid, name, endpoint FROM wim WHERE vendor='Tapi';"
+            query = "SELECT uuid, name, endpoint FROM wim WHERE vendor in ('Tapi', 'tapi');"
             LOG.debug(f'query: {query}')
             cursor.execute(query)
             wims = cursor.fetchall()
