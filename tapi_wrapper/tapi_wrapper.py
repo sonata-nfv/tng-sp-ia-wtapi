@@ -291,7 +291,11 @@ class TapiWrapperEngine(object):
                 sip_list = response.json()
             else:
                 raise ConnectionError({'msg': response.text, 'code': response.status_code})
-        filtered_sip = [sip for sip in sip_list for sip_name in sip['name'] if sip_name['value-name'] == name]
+        filtered_sip = [
+            sip for sip in sip_list
+            for sip_pair in sip['name']
+            if sip_pair['value-name'] == 'public-name' and sip_pair['value'] == name
+        ]
         if len(filtered_sip) == 1:
             return filtered_sip[0]
         elif len(filtered_sip) == 0:
