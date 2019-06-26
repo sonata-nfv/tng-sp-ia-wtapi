@@ -367,23 +367,53 @@ class TapiWrapper(object):
                                           database="vimregistry")
             cursor = connection.cursor()
             LOG.debug(f"Removing {db_endpoints} from vimregistry to avoid duplicates")
-            if db_endpoints:
+            if len(db_endpoints) == 1:
+                query_delete = f"DELETE FROM vim WHERE vendor = 'endpoint' AND uuid in ({db_endpoints[0]})"
+                LOG.debug(f'query_delete: {query_delete}')
+                cursor.execute(query_delete)
+                connection.commit()
+            elif len(db_endpoints) > 1:
                 query_delete = f"DELETE FROM vim WHERE vendor = 'endpoint' AND uuid in {tuple(db_endpoints)}"
                 LOG.debug(f'query_delete: {query_delete}')
                 cursor.execute(query_delete)
                 connection.commit()
             # GET VIM endpoints
-            if sip_names:
+            if len(sip_names) == 1:
+                query_names = f"SELECT uuid FROM vim WHERE vendor = 'endpoint' AND name in ({sip_names[0]})"
+                LOG.debug(f'query_names: {query_names}')
+                cursor.execute(query_names)
+                db_endpoints_by_name = [e[0] for e in cursor.fetchall()]
+                LOG.debug(f"Removing {db_endpoints_by_name} from vimregistry to avoid naming duplicates")
+                if len(db_endpoints_by_name) == 1:
+                    query_delete_by_name = f"DELETE FROM vim WHERE vendor = 'endpoint' AND uuid in ({db_endpoints_by_name[0]})"
+                    LOG.debug(f'query_delete_by_name: {query_delete_by_name}')
+                    cursor.execute(query_delete_by_name)
+                    connection.commit()
+                    db_endpoints.append(db_endpoints_by_name)
+                elif len(db_endpoints_by_name) > 1:
+                    query_delete_by_name = f"DELETE FROM vim WHERE vendor = 'endpoint' AND uuid in {tuple(db_endpoints_by_name)}"
+                    LOG.debug(f'query_delete_by_name: {query_delete_by_name}')
+                    cursor.execute(query_delete_by_name)
+                    connection.commit()
+                    db_endpoints.append(db_endpoints_by_name)
+            elif len(sip_names) > 1:
                 query_names = f"SELECT uuid FROM vim WHERE vendor = 'endpoint' AND name in {tuple(sip_names)}"
                 LOG.debug(f'query_names: {query_names}')
                 cursor.execute(query_names)
                 db_endpoints_by_name = [e[0] for e in cursor.fetchall()]
                 LOG.debug(f"Removing {db_endpoints_by_name} from vimregistry to avoid naming duplicates")
-                query_delete_by_name = f"DELETE FROM vim WHERE vendor = 'endpoint' AND uuid in {tuple(db_endpoints_by_name)}"
-                LOG.debug(f'query_delete_by_name: {query_delete_by_name}')
-                cursor.execute(query_delete_by_name)
-                connection.commit()
-                db_endpoints.append(db_endpoints_by_name)
+                if len(db_endpoints_by_name) == 1:
+                    query_delete_by_name = f"DELETE FROM vim WHERE vendor = 'endpoint' AND uuid in ({db_endpoints_by_name[0]})"
+                    LOG.debug(f'query_delete_by_name: {query_delete_by_name}')
+                    cursor.execute(query_delete_by_name)
+                    connection.commit()
+                    db_endpoints.append(db_endpoints_by_name)
+                elif len(db_endpoints_by_name) > 1:
+                    query_delete_by_name = f"DELETE FROM vim WHERE vendor = 'endpoint' AND uuid in {tuple(db_endpoints_by_name)}"
+                    LOG.debug(f'query_delete_by_name: {query_delete_by_name}')
+                    cursor.execute(query_delete_by_name)
+                    connection.commit()
+                    db_endpoints.append(db_endpoints_by_name)
             return db_endpoints
         except (Exception, psycopg2.Error) as error:
             LOG.error(error)
@@ -410,10 +440,11 @@ class TapiWrapper(object):
             cursor.execute(query)
             db_endpoints = cursor.fetchall()
             LOG.debug(f"Remove {db_endpoints} from vimregistry to avoid duplicates")
-            query_delete = f"DELETE FROM attached_vim WHERE wim_uuid = '{wim_uuid}'"
-            LOG.debug(f'query_delete: {query_delete}')
-            cursor.execute(query_delete)
-            connection.commit()
+            if wim_uuid:
+                query_delete = f"DELETE FROM attached_vim WHERE wim_uuid = '{wim_uuid}'"
+                LOG.debug(f'query_delete: {query_delete}')
+                cursor.execute(query_delete)
+                connection.commit()
             return db_endpoints
         except (Exception, psycopg2.Error) as error:
             LOG.error(error)
@@ -839,15 +870,15 @@ class TapiWrapper(object):
 
     def check_router_connection(self, virtual_link_uuid):
         if self.wtapi_ledger[virtual_link_uuid]['ingress']['type'] == 'endpoint' \
-                and self.wtapi_ledger[virtual_link_uuid]['egress']['conf']['router_ext_ip']:
+                and self.wtapi_ledger[virtual_link_uuid]['egress']['conf'].get('router_ext_ip'):
             client_endpoint_uuid = self.wtapi_ledger[virtual_link_uuid]['ingress']['location']
             pop_uuid = self.wtapi_ledger[virtual_link_uuid]['egress']['location']
         elif self.wtapi_ledger[virtual_link_uuid]['egress']['type'] == 'endpoint' \
-                and self.wtapi_ledger[virtual_link_uuid]['ingress']['conf']['router_ext_ip']:
+                and self.wtapi_ledger[virtual_link_uuid]['ingress']['conf'].get('router_ext_ip'):
             client_endpoint_uuid = self.wtapi_ledger[virtual_link_uuid]['egress']['location']
             pop_uuid = self.wtapi_ledger[virtual_link_uuid]['ingress']['location']
-        elif self.wtapi_ledger[virtual_link_uuid]['ingress']['conf']['router_ext_ip'] \
-                and self.wtapi_ledger[virtual_link_uuid]['egress']['conf']['router_ext_ip']:
+        elif self.wtapi_ledger[virtual_link_uuid]['ingress']['conf'].get('router_ext_ip') \
+                and self.wtapi_ledger[virtual_link_uuid]['egress']['conf'].get('router_ext_ip'):
             # TODO: implement multi-NFVI-PoP router flow
             LOG.warning('No client endpoint found, both endpoints are NFVI-PoPs, '
                             'multi-vim wan provisioning not implemented yet')
@@ -933,52 +964,52 @@ class TapiWrapper(object):
                 requested_capacity=requested_capacity, latency=requested_latency),
         ]
         if self.wtapi_ledger[virtual_link_uuid]['router_flow_creation'] \
-                and self.wtapi_ledger[virtual_link_uuid]['egress']['conf']['router_ext_ip'] \
+                and self.wtapi_ledger[virtual_link_uuid]['egress']['conf'].get('router_ext_ip') \
                 and self.wtapi_ledger[virtual_link_uuid]['ingress']['type'] == 'endpoint':
             self.wtapi_ledger[virtual_link_uuid]['router_flow_operational'] = True
             router_connectivity_services = [
                 self.engine.generate_cs_from_nap_pair(
-                    ingress_nap, self.wtapi_ledger[virtual_link_uuid]['egress']['conf']['router_ext_ip'],
+                    ingress_nap, self.wtapi_ledger[virtual_link_uuid]['egress']['conf'].get('router_ext_ip'),
                     ingress_sip_uuid, egress_sip_uuid,
                     layer='MPLS', direction='UNIDIRECTIONAL'),
                 self.engine.generate_cs_from_nap_pair(
-                    self.wtapi_ledger[virtual_link_uuid]['egress']['conf']['router_ext_ip'], ingress_nap,
+                    self.wtapi_ledger[virtual_link_uuid]['egress']['conf'].get('router_ext_ip'), ingress_nap,
                     egress_sip_uuid, ingress_sip_uuid,
                     layer='MPLS', direction='UNIDIRECTIONAL'),
                 self.engine.generate_cs_from_nap_pair(
-                    ingress_nap, self.wtapi_ledger[virtual_link_uuid]['egress']['conf']['router_ext_ip'],
+                    ingress_nap, self.wtapi_ledger[virtual_link_uuid]['egress']['conf'].get('router_ext_ip'),
                     ingress_sip_uuid, egress_sip_uuid,
                     layer='MPLS_ARP', direction='UNIDIRECTIONAL'),
                 self.engine.generate_cs_from_nap_pair(
-                    self.wtapi_ledger[virtual_link_uuid]['egress']['conf']['router_ext_ip'], ingress_nap,
+                    self.wtapi_ledger[virtual_link_uuid]['egress']['conf'].get('router_ext_ip'), ingress_nap,
                     egress_sip_uuid, ingress_sip_uuid,
                     layer='MPLS_ARP', direction='UNIDIRECTIONAL'),
             ]
         elif self.wtapi_ledger[virtual_link_uuid]['router_flow_creation'] \
-                and self.wtapi_ledger[virtual_link_uuid]['ingress']['conf']['router_ext_ip'] \
+                and self.wtapi_ledger[virtual_link_uuid]['ingress']['conf'].get('router_ext_ip') \
                 and self.wtapi_ledger[virtual_link_uuid]['egress']['type'] == 'endpoint':
             self.wtapi_ledger[virtual_link_uuid]['router_flow_operational'] = True
             router_connectivity_services = [
             self.engine.generate_cs_from_nap_pair(
-                self.wtapi_ledger[virtual_link_uuid]['ingress']['conf']['router_ext_ip'], egress_nap,
+                self.wtapi_ledger[virtual_link_uuid]['ingress']['conf'].get('router_ext_ip'), egress_nap,
                 ingress_sip_uuid, egress_sip_uuid,
                 layer='MPLS', direction='UNIDIRECTIONAL'),
             self.engine.generate_cs_from_nap_pair(
-                egress_nap, self.wtapi_ledger[virtual_link_uuid]['ingress']['conf']['router_ext_ip'],
+                egress_nap, self.wtapi_ledger[virtual_link_uuid]['ingress']['conf'].get('router_ext_ip'),
                 egress_sip_uuid, ingress_sip_uuid,
                 layer='MPLS', direction='UNIDIRECTIONAL'),
             self.engine.generate_cs_from_nap_pair(
-                self.wtapi_ledger[virtual_link_uuid]['ingress']['conf']['router_ext_ip'], egress_nap,
+                self.wtapi_ledger[virtual_link_uuid]['ingress']['conf'].get('router_ext_ip'), egress_nap,
                 ingress_sip_uuid, egress_sip_uuid,
                 layer='MPLS_ARP', direction='UNIDIRECTIONAL'),
             self.engine.generate_cs_from_nap_pair(
-                egress_nap, self.wtapi_ledger[virtual_link_uuid]['ingress']['conf']['router_ext_ip'],
+                egress_nap, self.wtapi_ledger[virtual_link_uuid]['ingress']['conf'].get('router_ext_ip'),
                 egress_sip_uuid, ingress_sip_uuid,
                 layer='MPLS_ARP', direction='UNIDIRECTIONAL'),
         ]
         elif self.wtapi_ledger[virtual_link_uuid]['router_flow_creation'] \
-                and self.wtapi_ledger[virtual_link_uuid]['ingress']['conf']['router_ext_ip'] \
-                and self.wtapi_ledger[virtual_link_uuid]['egress']['conf']['router_ext_ip']:
+                and self.wtapi_ledger[virtual_link_uuid]['ingress']['conf'].get('router_ext_ip') \
+                and self.wtapi_ledger[virtual_link_uuid]['egress']['conf'].get('router_ext_ip'):
             self.wtapi_ledger[virtual_link_uuid]['router_flow_operational'] = True
             LOG.warning(f'MSCS not implemented yet in the wrapper')
             # RouterA<->RouterB, VNFA<->RouterB RouterA<->VNFB, tests needed before implementing
