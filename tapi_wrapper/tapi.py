@@ -201,37 +201,69 @@ class TapiWrapper(object):
                         ].pop()
                         # process floating_ip_ranging
                         floating_subnets = []
+                        layer = self.get_connectivity_layer_by_sip_info(platform_sip, sip)
                         for ip_range in management_flow['floating_ip_ranging'].split(','):
                             ip_tokens = ip_range.split('-')
                             floating_subnets.extend(
                                 self.tokenize_subnet_range(ip_tokens[0].strip(), ip_tokens[1].strip()))
                         for subnet in floating_subnets:
-                            management_cs = [
-                                self.engine.generate_cs_from_nap_pair(
-                                    '/'.join([vim_match[3]['management_flow_ip'], '32']),
-                                    subnet,
-                                    platform_sip['uuid'], sip['uuid'],
-                                    layer='MPLS', direction='UNIDIRECTIONAL'
-                                ),
-                                self.engine.generate_cs_from_nap_pair(
-                                    subnet,
-                                    '/'.join([vim_match[3]['management_flow_ip'], '32']),
-                                    sip['uuid'], platform_sip['uuid'],
-                                    layer='MPLS', direction='UNIDIRECTIONAL'
-                                ),
-                                self.engine.generate_cs_from_nap_pair(
-                                    '/'.join([vim_match[3]['management_flow_ip'], '32']),
-                                    subnet,
-                                    platform_sip['uuid'], sip['uuid'],
-                                    layer='MPLS_ARP', direction='UNIDIRECTIONAL'
-                                ),
-                                self.engine.generate_cs_from_nap_pair(
-                                    subnet,
-                                    '/'.join([vim_match[3]['management_flow_ip'], '32']),
-                                    sip['uuid'], platform_sip['uuid'],
-                                    layer='MPLS_ARP', direction='UNIDIRECTIONAL'
-                                )
-                            ]
+                            if layer == 'MPLS':
+                                management_cs = [
+                                    self.engine.generate_cs_from_nap_pair(
+                                        '/'.join([vim_match[3]['management_flow_ip'], '32']),
+                                        subnet,
+                                        platform_sip['uuid'], sip['uuid'],
+                                        layer=layer, direction='UNIDIRECTIONAL'
+                                    ),
+                                    self.engine.generate_cs_from_nap_pair(
+                                        subnet,
+                                        '/'.join([vim_match[3]['management_flow_ip'], '32']),
+                                        sip['uuid'], platform_sip['uuid'],
+                                        layer=layer, direction='UNIDIRECTIONAL'
+                                    ),
+                                    self.engine.generate_cs_from_nap_pair(
+                                        '/'.join([vim_match[3]['management_flow_ip'], '32']),
+                                        subnet,
+                                        platform_sip['uuid'], sip['uuid'],
+                                        layer='MPLS_ARP', direction='UNIDIRECTIONAL'
+                                    ),
+                                    self.engine.generate_cs_from_nap_pair(
+                                        subnet,
+                                        '/'.join([vim_match[3]['management_flow_ip'], '32']),
+                                        sip['uuid'], platform_sip['uuid'],
+                                        layer='MPLS_ARP', direction='UNIDIRECTIONAL'
+                                    )
+                                ]
+                            elif layer == 'ETH':
+                                management_cs = [
+                                    self.engine.generate_cs_from_nap_pair(
+                                        '/'.join([vim_match[3]['management_flow_ip'], '32']),
+                                        subnet,
+                                        platform_sip['uuid'], sip['uuid'],
+                                        layer=layer, direction='UNIDIRECTIONAL'
+                                    ),
+                                    self.engine.generate_cs_from_nap_pair(
+                                        subnet,
+                                        '/'.join([vim_match[3]['management_flow_ip'], '32']),
+                                        sip['uuid'], platform_sip['uuid'],
+                                        layer=layer, direction='UNIDIRECTIONAL'
+                                    ),
+                                    self.engine.generate_cs_from_nap_pair(
+                                        '/'.join([vim_match[3]['management_flow_ip'], '32']),
+                                        subnet,
+                                        platform_sip['uuid'], sip['uuid'],
+                                        layer='ARP', direction='UNIDIRECTIONAL'
+                                    ),
+                                    self.engine.generate_cs_from_nap_pair(
+                                        subnet,
+                                        '/'.join([vim_match[3]['management_flow_ip'], '32']),
+                                        sip['uuid'], platform_sip['uuid'],
+                                        layer='ARP', direction='UNIDIRECTIONAL'
+                                    )
+                                ]
+                            else:
+                                LOG.warning('Layer not compatible')
+                                break
                             self.engine.create_connectivity_service(wim_host, management_cs[0])
                             self.engine.create_connectivity_service(wim_host, management_cs[1])
                             self.engine.create_connectivity_service(wim_host, management_cs[2])
@@ -302,6 +334,20 @@ class TapiWrapper(object):
                 if sip_name == vim[1]:
                     return vim
         return []
+
+    def get_connectivity_layer_by_sip_info(self, source_sip, target_sip):
+        """
+        When the node is the same on both source and target, connectivity layer cannot be MPLS
+        :param source_sip:
+        :param target_sip:
+        :return:
+        """
+        source_local_name = [name['value'] for name in source_sip['name'] if name['value-name'] == 'local-name'].pop()
+        target_local_name = [name['value'] for name in target_sip['name'] if name['value-name'] == 'local-name'].pop()
+        if source_local_name.split('_')[0] == target_local_name.split('_')[0]:
+            return 'ETH'
+        else:
+            return 'MPLS'
 
     def get_wims_setup(self):
         connection = None
@@ -860,8 +906,10 @@ class TapiWrapper(object):
         egress_name = self.wtapi_ledger[virtual_link_uuid]['egress']['name']
         ingress_sip = self.engine.get_sip_by_name(wim_host, ingress_name)
         egress_sip = self.engine.get_sip_by_name(wim_host, egress_name)
+        layer = self.get_connectivity_layer_by_sip_info(ingress_sip, egress_sip)
         self.wtapi_ledger[virtual_link_uuid]['ingress']['sip'] = ingress_sip['uuid']  # value-name and value
         self.wtapi_ledger[virtual_link_uuid]['egress']['sip'] = egress_sip['uuid']
+        self.wtapi_ledger[virtual_link_uuid]['layer'] = layer
         return {
             'result': True,
             'message': f'got ingress {ingress_name} and egress {egress_name} sip match for {virtual_link_uuid}',
@@ -914,6 +962,7 @@ class TapiWrapper(object):
         # TODO now there is only one ingress and one egress
         # TODO: add latency param and qos in general if it's included in the request
         wim_host = self.wtapi_ledger[virtual_link_uuid]['wim']['host']
+
         if len(self.wtapi_ledger[virtual_link_uuid]['ingress']['nap'].split('/')) == 2:
             ingress_nap = self.wtapi_ledger[virtual_link_uuid]['ingress']['nap']
         else:
@@ -941,26 +990,32 @@ class TapiWrapper(object):
                   f'egress_nap={egress_nap}, egress_sip={egress_sip_uuid}, '
                   f'requested_capacity={requested_capacity}, requested_latency={requested_latency}')
         self.wtapi_ledger[virtual_link_uuid]['active_connectivity_services'] = []
+        if self.wtapi_ledger[virtual_link_uuid]['layer'] == 'MPLS':
+            service_layer = 'MPLS'
+            discovery_layer = 'MPLS_ARP'
+        else:
+            service_layer = 'ETH'
+            discovery_layer = 'ARP'
         connectivity_services = [
             self.engine.generate_cs_from_nap_pair(
                 ingress_nap, egress_nap,
                 ingress_sip_uuid, egress_sip_uuid,
-                layer='MPLS', direction='UNIDIRECTIONAL',
+                layer=service_layer, direction='UNIDIRECTIONAL',
                 requested_capacity=requested_capacity, latency=requested_latency),
             self.engine.generate_cs_from_nap_pair(
                 egress_nap, ingress_nap,
                 egress_sip_uuid, ingress_sip_uuid,
-                layer='MPLS', direction='UNIDIRECTIONAL',
+                layer=service_layer, direction='UNIDIRECTIONAL',
                 requested_capacity=requested_capacity, latency=requested_latency),
             self.engine.generate_cs_from_nap_pair(
                 ingress_nap, egress_nap,
                 ingress_sip_uuid, egress_sip_uuid,
-                layer='MPLS_ARP', direction='UNIDIRECTIONAL',
+                layer=discovery_layer, direction='UNIDIRECTIONAL',
                 requested_capacity=requested_capacity, latency=requested_latency),
             self.engine.generate_cs_from_nap_pair(
                 egress_nap, ingress_nap,
                 egress_sip_uuid, ingress_sip_uuid,
-                layer='MPLS_ARP', direction='UNIDIRECTIONAL',
+                layer=discovery_layer, direction='UNIDIRECTIONAL',
                 requested_capacity=requested_capacity, latency=requested_latency),
         ]
         if self.wtapi_ledger[virtual_link_uuid]['router_flow_creation'] \
@@ -971,19 +1026,19 @@ class TapiWrapper(object):
                 self.engine.generate_cs_from_nap_pair(
                     ingress_nap, self.wtapi_ledger[virtual_link_uuid]['egress']['conf'].get('router_ext_ip'),
                     ingress_sip_uuid, egress_sip_uuid,
-                    layer='MPLS', direction='UNIDIRECTIONAL'),
+                    layer=service_layer, direction='UNIDIRECTIONAL'),
                 self.engine.generate_cs_from_nap_pair(
                     self.wtapi_ledger[virtual_link_uuid]['egress']['conf'].get('router_ext_ip'), ingress_nap,
                     egress_sip_uuid, ingress_sip_uuid,
-                    layer='MPLS', direction='UNIDIRECTIONAL'),
+                    layer=service_layer, direction='UNIDIRECTIONAL'),
                 self.engine.generate_cs_from_nap_pair(
                     ingress_nap, self.wtapi_ledger[virtual_link_uuid]['egress']['conf'].get('router_ext_ip'),
                     ingress_sip_uuid, egress_sip_uuid,
-                    layer='MPLS_ARP', direction='UNIDIRECTIONAL'),
+                    layer=discovery_layer, direction='UNIDIRECTIONAL'),
                 self.engine.generate_cs_from_nap_pair(
                     self.wtapi_ledger[virtual_link_uuid]['egress']['conf'].get('router_ext_ip'), ingress_nap,
                     egress_sip_uuid, ingress_sip_uuid,
-                    layer='MPLS_ARP', direction='UNIDIRECTIONAL'),
+                    layer=discovery_layer, direction='UNIDIRECTIONAL'),
             ]
         elif self.wtapi_ledger[virtual_link_uuid]['router_flow_creation'] \
                 and self.wtapi_ledger[virtual_link_uuid]['ingress']['conf'].get('router_ext_ip') \
@@ -993,19 +1048,19 @@ class TapiWrapper(object):
             self.engine.generate_cs_from_nap_pair(
                 self.wtapi_ledger[virtual_link_uuid]['ingress']['conf'].get('router_ext_ip'), egress_nap,
                 ingress_sip_uuid, egress_sip_uuid,
-                layer='MPLS', direction='UNIDIRECTIONAL'),
+                layer=service_layer, direction='UNIDIRECTIONAL'),
             self.engine.generate_cs_from_nap_pair(
                 egress_nap, self.wtapi_ledger[virtual_link_uuid]['ingress']['conf'].get('router_ext_ip'),
                 egress_sip_uuid, ingress_sip_uuid,
-                layer='MPLS', direction='UNIDIRECTIONAL'),
+                layer=service_layer, direction='UNIDIRECTIONAL'),
             self.engine.generate_cs_from_nap_pair(
                 self.wtapi_ledger[virtual_link_uuid]['ingress']['conf'].get('router_ext_ip'), egress_nap,
                 ingress_sip_uuid, egress_sip_uuid,
-                layer='MPLS_ARP', direction='UNIDIRECTIONAL'),
+                layer=discovery_layer, direction='UNIDIRECTIONAL'),
             self.engine.generate_cs_from_nap_pair(
                 egress_nap, self.wtapi_ledger[virtual_link_uuid]['ingress']['conf'].get('router_ext_ip'),
                 egress_sip_uuid, ingress_sip_uuid,
-                layer='MPLS_ARP', direction='UNIDIRECTIONAL'),
+                layer=discovery_layer, direction='UNIDIRECTIONAL'),
         ]
         elif self.wtapi_ledger[virtual_link_uuid]['router_flow_creation'] \
                 and self.wtapi_ledger[virtual_link_uuid]['ingress']['conf'].get('router_ext_ip') \
