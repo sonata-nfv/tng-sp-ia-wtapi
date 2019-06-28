@@ -119,7 +119,7 @@ class TapiWrapperEngine(object):
         """
         LOG.debug(f'generate_cs_from_nap_pair: ingress={ingress_ep[:8]}@{ingress_nap}, egress={egress_ep[:8]}@{egress_nap}, '
                   f'layer={layer}, cap={requested_capacity}, latency={latency}')
-        allowed_layer = {'ETH', 'MPLS'}
+        allowed_layer = {'ETH', 'MPLS', 'ARP'}
         special_layer = {'MPLS_ARP'}
         allowed_direction = {'UNIDIRECTIONAL', 'BIDIRECTIONAL'}
         if direction not in allowed_direction:
@@ -127,7 +127,6 @@ class TapiWrapperEngine(object):
             LOG.error(err_msg)
             raise ValueError(err_msg)
         if not (layer in allowed_layer or layer in special_layer):
-
             raise ValueError('Layer {} must be one of {}'.format(layer, allowed_layer.union(special_layer)))
         if layer == 'ETH' or (layer == 'MPLS' and direction == 'UNIDIRECTIONAL'):
             LOG.debug(f'Generating {layer} cs #{self.index}')
