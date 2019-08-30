@@ -697,7 +697,7 @@ class TapiWrapper(object):
 
         message = {
             'request_status': 'ERROR',
-            'message': error,
+            'message': format(error),
         }
         if topic:
             self.manoconn.notify(topic,
