@@ -190,7 +190,9 @@ class TapiWrapper(object):
                         'subnets': []
                     }
                     # TODO: Check if management_flow_ip are present in configuration field
-                    if 'management_flow_ip' in vim_match[3] and 'floating_ip_ranging' in vim_match[3]:
+                    if vim_match[3].get('management_flow_ip') and vim_match[3].get('floating_ip_ranging'):
+                        LOG.debug('Found management_flow_ip and floating_ip_ranging, '
+                                  'creating management SDN connectivity service')
                         management_flow = {
                             'management_flow_ip': vim_match[3]['management_flow_ip'],
                             'floating_ip_ranging': vim_match[3]['floating_ip_ranging'],
@@ -276,6 +278,9 @@ class TapiWrapper(object):
                         self.aux_wtapi_ledger['management_cs_registry'].append(management_registry)
                         # router_ext_ip: A.B.C.D
                         # management_flow_ip: A.B.C.D
+                    else:
+                        LOG.debug('No SDN connectivity service is required')
+
                 elif not vim_match:
                     LOG.debug(f'Inserting new sip={sip_name}')
                     new_uuid = uuid.uuid4()
