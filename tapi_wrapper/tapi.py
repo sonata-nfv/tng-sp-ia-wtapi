@@ -1309,7 +1309,19 @@ class TapiWrapper(object):
         # expected_keys = {'service_instance_id', 'nap', 'vim_list', 'qos_parameters'}
         if not all(key in message.keys() for key in expected_keys):
             error = f'Payload should contain at least {expected_keys}'
-            LOG.error(message.keys())
+            LOG.error(f'{error}, message: {message.keys()}')
+            send_error_response(error, None)
+            return
+
+        elif not message['ingress'] or not type(message['ingress']) is dict:
+            error = f'Ingress ({message["ingress"]}) cannot be empty or it is bad formatted'
+            LOG.error(error)
+            send_error_response(error, None)
+            return
+
+        elif not message['egress'] or not type(message['egress']) is dict:
+            error = f'Egress ({message["egress"]}) cannot be empty or it is bad formatted'
+            LOG.error(error)
             send_error_response(error, None)
             return
 
