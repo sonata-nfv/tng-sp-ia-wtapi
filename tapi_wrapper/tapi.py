@@ -706,7 +706,7 @@ class TapiWrapper(object):
         }
         if topic:
             self.manoconn.notify(topic,
-                                 yaml.dump(message),
+                                 json.dumps(message),
                                  correlation_id=corr_id)
         else:
             LOG.error(f'Correct topic not found, {virtual_link_uuid}, message {message} could not be sent')
@@ -1271,13 +1271,13 @@ class TapiWrapper(object):
         def send_error_response(error, virtual_link_uuid):
 
             response = {
-                'message': error,
+                'message': str(error),
                 'request_status': 'ERROR'
             }
-            msg = ' Response on create request: ' + str(response)
+            msg = 'Response on create request: ' + str(response)
             LOG.error(f'Parsing error: {msg}')
             self.manoconn.notify(properties.reply_to,
-                                 yaml.dump(response),
+                                 json.dumps(response),
                                  correlation_id=properties.correlation_id)
 
         LOG.debug(f'CONF_LEDGER_DEBUG: {self.wtapi_ledger}')
@@ -1392,13 +1392,13 @@ class TapiWrapper(object):
         def send_error_response(error, virtual_link_uuid):
 
             response = {
-                'message': error,
+                'message': str(error),
                 'request_status': 'ERROR'
             }
             msg = ' Response on remove request: ' + str(response)
             LOG.info('Virtual link ' + str(virtual_link_uuid) + msg)
             self.manoconn.notify(properties.reply_to,
-                                 yaml.dump(response),
+                                 json.dumps(response),
                                  correlation_id=properties.correlation_id)
 
         LOG.debug(f'DECONF_LEDGER_DEBUG: {self.wtapi_ledger}')
@@ -1477,13 +1477,13 @@ class TapiWrapper(object):
         def send_error_response(error, virtual_link_uuid):
 
             response = {
-                'message': error,
+                'message': str(error),
                 'request_status': 'ERROR'
             }
             msg = ' Response on create request: ' + str(response)
             LOG.info('Virtual link ' + str(virtual_link_uuid) + msg)
             self.manoconn.notify(properties.reply_to,
-                                 yaml.dump(response),
+                                 json.dumps(response),
                                  correlation_id=properties.correlation_id)
 
         # Don't trigger on self created messages
@@ -1546,7 +1546,7 @@ class TapiWrapper(object):
         # message["timestamp"] = time.time()
         self.manoconn.notify(
             topic,
-            yaml.dump(message),
+            json.dumps(message),
             correlation_id=corr_id)
 
 
