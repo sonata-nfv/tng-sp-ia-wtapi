@@ -709,7 +709,7 @@ class TapiWrapper(object):
                                  yaml.dump(message),
                                  correlation_id=corr_id)
         else:
-            LOG.error(f'Correct topic not found, {virtual_link_uuid}')
+            LOG.error(f'Correct topic not found, {virtual_link_uuid}, message {message} could not be sent')
 
     #############################
     # Callbacks
@@ -1275,8 +1275,8 @@ class TapiWrapper(object):
                 'request_status': 'ERROR'
             }
             msg = ' Response on create request: ' + str(response)
-            LOG.info('Virtual link ' + str(virtual_link_uuid) + msg)
-            self.manoconn.notify(topics.WAN_CONFIGURE,
+            LOG.error(f'Parsing error: {msg}')
+            self.manoconn.notify(properties.reply_to,
                                  yaml.dump(response),
                                  correlation_id=properties.correlation_id)
 
@@ -1396,8 +1396,8 @@ class TapiWrapper(object):
                 'request_status': 'ERROR'
             }
             msg = ' Response on remove request: ' + str(response)
-            LOG.info('Service ' + str(virtual_link_uuid) + msg)
-            self.manoconn.notify(topics.WAN_DECONFIGURE,
+            LOG.info('Virtual link ' + str(virtual_link_uuid) + msg)
+            self.manoconn.notify(properties.reply_to,
                                  yaml.dump(response),
                                  correlation_id=properties.correlation_id)
 
@@ -1482,7 +1482,7 @@ class TapiWrapper(object):
             }
             msg = ' Response on create request: ' + str(response)
             LOG.info('Virtual link ' + str(virtual_link_uuid) + msg)
-            self.manoconn.notify(topics.WAN_CONFIGURE,
+            self.manoconn.notify(properties.reply_to,
                                  yaml.dump(response),
                                  correlation_id=properties.correlation_id)
 
