@@ -1,11 +1,10 @@
-# tng-sp-ia-wtapi
-This is a component in SONATA [5GTANGO](http://www.5gtango.eu) service platform responsible to manage the interface between MANO and WAN managers implementing TAPI.
+[![Build Status](http://jenkins.sonata-nfv.eu/buildStatus/icon?job=tng-vnv-curator/master)](https://jenkins.sonata-nfv.eu/job/tng-vnv-curator) [![Gitter](https://badges.gitter.im/sonata-nfv/Lobby.svg)](https://gitter.im/sonata-nfv/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 
 <p align="center"><img src="https://github.com/sonata-nfv/tng-api-gtw/wiki/images/sonata-5gtango-logo-500px.png" /></p>
 
-[![Build Status](http://jenkins.sonata-nfv.eu/buildStatus/icon?job=tng-vnv-curator/master)](https://jenkins.sonata-nfv.eu/job/tng-vnv-curator)
+# 5GTANGO Transport API (T-API) WIM wrapper
 
-## 5GTANGO Transport API (T-API) WIM wrapper
+This is a component in SONATA [5GTANGO](http://www.5gtango.eu) service platform responsible to manage the interface between MANO and WAN managers implementing TAPI.
 
 T-API plugin is integrated in the Infrastructure Abstraction component and manages WIMs using T-API protocol. It is using an extended version of T-API, that allows the use of flow matching parameters (e.g., match per link-layer address or per IP address). Also, MPLS tags are used for each virtual link.
 
