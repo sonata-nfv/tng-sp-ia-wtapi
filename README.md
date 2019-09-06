@@ -1,4 +1,4 @@
-[![Build Status](http://jenkins.sonata-nfv.eu/buildStatus/icon?job=tng-vnv-curator/master)](https://jenkins.sonata-nfv.eu/job/tng-vnv-curator) [![Gitter](https://badges.gitter.im/sonata-nfv/Lobby.svg)](https://gitter.im/sonata-nfv/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
+[![Build Status](http://jenkins.sonata-nfv.eu/buildStatus/icon?job=tng-sp-ia-wtapi/master)](https://jenkins.sonata-nfv.eu/job/tng-sp-ia-wtapi) [![Gitter](https://badges.gitter.im/sonata-nfv/Lobby.svg)](https://gitter.im/sonata-nfv/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 
 <p align="center"><img src="https://github.com/sonata-nfv/tng-api-gtw/wiki/images/sonata-5gtango-logo-500px.png" /></p>
 
