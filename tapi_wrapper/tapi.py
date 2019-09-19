@@ -42,7 +42,6 @@ import ipaddress
 import traceback
 
 from tapi_wrapper import messaging as messaging
-from tapi_wrapper import tapi_helpers as tools
 from tapi_wrapper import tapi_topics as topics
 from tapi_wrapper import tapi_wrapper as engine
 from tapi_wrapper.logger import TangoLogger
@@ -1344,10 +1343,11 @@ class TapiWrapper(object):
         ]
 
         LOG.debug(f"Services deployed {self.wtapi_ledger}")
-        LOG.info(f"Enabling virtual link {virtual_link_id} for service {service_instance_id}")
+
 
         # We are suposing that only a unique WIM will serve one service_instance
         if virtual_link_uuid not in self.wtapi_ledger.keys():
+            LOG.info(f"Enabling virtual link {virtual_link_id} for service {service_instance_id}")
             self.wtapi_ledger[virtual_link_uuid] = {
                 'uuid': virtual_link_uuid,
                 'vl_id': virtual_link_id,
@@ -1368,7 +1368,10 @@ class TapiWrapper(object):
                 'topic': properties.reply_to,
             }
         else:
-            raise KeyError('Duplicated virtual_link_uuid')
+            error = f'Duplicated vl_id={virtual_link_uuid}, it must be unique'
+            LOG.error(f'{error}, message: {message.keys()}')
+            send_error_response(error, virtual_link_uuid)
+            return
 
         if message['egress']['location'] == message['ingress']['location']:
             LOG.info(f"NS {service_instance_id}, VL:{virtual_link_id}: "
