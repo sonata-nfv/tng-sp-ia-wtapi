@@ -1139,7 +1139,6 @@ class TapiWrapper(object):
                     # TODO: this is mscs flow
                     pass
 
-
             except Exception as exc:
                 LOG.error(f'{connectivity_service["uuid"]} generated an exception: {exc}')
         # with pool.ThreadPoolExecutor(max_workers=100) as executor:

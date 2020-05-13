@@ -102,11 +102,10 @@ class TapiWrapperEngine(object):
         tapi_topology_url = 'http://' + wim['ip'] + ':' + str(wim['port']) + '/restconf/config/context/topology/0/'
         wim_topology = requests.get(tapi_topology_url)
         return wim_topology.json()
-
+   
     def generate_cs_from_nap_pair(self, ingress_nap, egress_nap, ingress_ep, egress_ep,
                                   direction='UNIDIRECTIONAL', layer='ETH', requested_capacity=100, latency=None):
         """
-
         :param uuid:
         :param ingress_nap:
         :param egress_nap:
@@ -134,30 +133,45 @@ class TapiWrapperEngine(object):
                 "uuid": str(self.index),
                 "end-point": [
                     {
-                        "service-interface-point": f"/restconf/config/context/service-interface-point/{ingress_ep}/",
+                        "local-id": ingress_ep,
+                        "service-interface-point": {
+                            #"service-interface-point": f"/restconf/config/context/service-interface-point/{ingress_ep}/"
+                            "service-interface-point-uuid": ingress_ep
+                        },
                         "direction": "BIDIRECTIONAL",
                         "layer-protocol-name": "ETH",
                         "role": "SYMMETRIC"
+                        "protection-role": "WORK"
                     },
                     {
-                        "service-interface-point": f"/restconf/config/context/service-interface-point/{egress_ep}/",
+                        "local-id": egress_ep,
+                        "service-interface-point": {
+                            #"service-interface-point": f"/restconf/config/context/service-interface-point/{egress_ep}/",
+                            "service-interface-point-uuid": egress_ep,
+                        },
                         "direction": "BIDIRECTIONAL",
                         "layer-protocol-name": "ETH",
-                        "role": "SYMMETRIC"
+                        "role": "SYMMETRIC",
+                        "protection-role": "WORK"
                     }
                 ],
-                "layer-protocol-name": layer,
-                "direction": direction,
-                "requested-capacity": {
-                    "total-size": {
-                        "value": str(requested_capacity / 1e6),
-                        "unit": "MBPS"
+                #"layer-protocol-name": layer,
+                #"direction": direction,
+                "connectivity-constraint": {
+                    "connectivity-direction": direction,
+                    "requested-capacity": {
+                        "total-size": {
+                            "value": str(requested_capacity / 1e6),
+                            "unit": "MBPS"
+                        }
                     }
                 },
-                "match": {
-                    'ipv4-source': ingress_nap,
-                    'ipv4-target': egress_nap,
-                    'link-layer-type': "2048"
+                "cttc": {
+                    "match": {
+                        "ipv4-source": ingress_nap,
+                        "ipv4-target": egress_nap,
+                        "link-layer-type": "2048"
+                    }
                 }
             }
         elif layer == 'ARP':
@@ -166,33 +180,49 @@ class TapiWrapperEngine(object):
                 "uuid": str(self.index),
                 "end-point": [
                     {
-                        "service-interface-point": f"/restconf/config/context/service-interface-point/{ingress_ep}/",
+                        "local-id": ingress_ep,
+                        "service-interface-point": {
+                            #"service-interface-point": f"/restconf/config/context/service-interface-point/{ingress_ep}/",
+                            "service-interface-point-uuid": ingress_ep,
+                        },
                         "direction": "BIDIRECTIONAL",
                         "layer-protocol-name": "ETH",
-                        "role": "SYMMETRIC"
+                        "role": "SYMMETRIC",
+                        "protection-role": "WORK"
                     },
                     {
-                        "service-interface-point": f"/restconf/config/context/service-interface-point/{egress_ep}/",
+                        "local-id": egress_ep,
+                        "service-interface-point": {
+                            #"service-interface-point-uuid": f"/restconf/config/context/service-interface-point/{egress_ep}/",
+                            "service-interface-point-uuid": egress_ep
+                        },
                         "direction": "BIDIRECTIONAL",
                         "layer-protocol-name": "ETH",
-                        "role": "SYMMETRIC"
+                        "role": "SYMMETRIC",
+                        "protection-rol": "WORK"
                     }
                 ],
-                "layer-protocol-name": 'ETH',
-                "direction": direction,
-                "requested-capacity": {
-                    "total-size": {
-                        "value": str(requested_capacity / 1e6),
-                        "unit": "MBPS"
-                    }
+                #"layer-protocol-name": 'ETH',
+                #"direction": direction,
+                "connectivity-contraint": {
+                    "connectivity-direction": direction,
+                    "requested-capacity": {
+                        "total-size": {
+                            "value": str(requested_capacity / 1e6),
+                            "unit": "MBPS"
+                        }
+                    }   
                 },
-                "match": {
-                    'ipv4-source': ingress_nap,
-                    'ipv4-target': egress_nap,
-                    'link-layer-type': "2054"
+                "cttc": {
+                    "match": {
+                        'ipv4-source': ingress_nap,
+                        'ipv4-target': egress_nap,
+                        'link-layer-type': "2054"
+                    }
                 }
             }
         elif layer == 'MPLS_ARP' and direction == 'UNIDIRECTIONAL':
+            #TODO: UPDATE WITH THE NEW JSON STRUCTURE when necessary
             LOG.debug(f'Generating {layer} cs #{self.index}')
             connectivity_service = {
                 "uuid": str(self.index),
@@ -224,7 +254,6 @@ class TapiWrapperEngine(object):
                     'link-layer-type': "2054"
                 }
             }
-            
         else:
             raise AttributeError(f'Layer {layer} is not compatible with direction {direction}')
         LOG.debug(f'finished cs #{self.index} creation')
