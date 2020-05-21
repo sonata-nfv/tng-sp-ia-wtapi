@@ -161,7 +161,8 @@ class TapiWrapperEngine(object):
                     "connectivity-direction": direction,
                     "requested-capacity": {
                         "total-size": {
-                            "value": str(requested_capacity / 1e6),
+                            #"value": str(requested_capacity / 1e6),
+                            "value": requested_capacity / 1e6,
                             "unit": "MBPS"
                         }
                     }
@@ -208,7 +209,8 @@ class TapiWrapperEngine(object):
                     "connectivity-direction": direction,
                     "requested-capacity": {
                         "total-size": {
-                            "value": str(requested_capacity / 1e6),
+                            #"value": str(requested_capacity / 1e6),
+                            "value": requested_capacity / 1e6,
                             "unit": "MBPS"
                         }
                     }   
