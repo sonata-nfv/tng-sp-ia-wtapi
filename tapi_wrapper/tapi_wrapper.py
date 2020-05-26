@@ -269,7 +269,8 @@ class TapiWrapperEngine(object):
         :return:
         """
         LOG.debug(f'TapiWrapper: Creating connectivity service {cs["uuid"]}')
-        tapi_cs_url = f'http://{wim_host}/restconf/config/context/connectivity-service/{cs["uuid"]}/'
+        #tapi_cs_url = f'http://{wim_host}/restconf/config/context/connectivity-service/{cs["uuid"]}/' # old version
+        tapi_cs_url = f'http://{wim_host}/restconf/operations/tapi-connectivity:create-connectivity-service/{cs["uuid"]}/'
         headers = {'Content-type': 'application/json'}
         try:
             response = requests.post(tapi_cs_url, json=cs, headers=headers)
@@ -310,6 +311,7 @@ class TapiWrapperEngine(object):
                 raise ConnectionError({'msg': response.text, 'code': response.status_code})
 
     def get_sip_by_name(self, wim_host, name):
+        #use the same URL than the GET SIP INVENTORY function/call
         tapi_sip_url = f'http://{wim_host}/restconf/config/context/service-interface-point/'
         headers = {'Accept': 'application/json', 'Content-type': 'application/json'}
         try:
