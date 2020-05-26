@@ -140,8 +140,8 @@ class TapiWrapperEngine(object):
                         },
                         "direction": "BIDIRECTIONAL",
                         "layer-protocol-name": "ETH",
-                        "role": "SYMMETRIC",
-                        "protection-role": "WORK"
+                        "protection-role": "WORK",
+                        "role": "SYMMETRIC"
                     },
                     {
                         "local-id": egress_ep,
@@ -151,8 +151,8 @@ class TapiWrapperEngine(object):
                         },
                         "direction": "BIDIRECTIONAL",
                         "layer-protocol-name": "ETH",
-                        "role": "SYMMETRIC",
-                        "protection-role": "WORK"
+                        "protection-role": "WORK",
+                        "role": "SYMMETRIC"
                     }
                 ],
                 #"layer-protocol-name": layer,
