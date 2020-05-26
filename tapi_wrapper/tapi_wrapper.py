@@ -140,7 +140,7 @@ class TapiWrapperEngine(object):
                         },
                         "direction": "BIDIRECTIONAL",
                         "layer-protocol-name": "ETH",
-                        "role": "SYMMETRIC"
+                        "role": "SYMMETRIC",
                         "protection-role": "WORK"
                     },
                     {
@@ -200,7 +200,7 @@ class TapiWrapperEngine(object):
                         "direction": "BIDIRECTIONAL",
                         "layer-protocol-name": "ETH",
                         "role": "SYMMETRIC",
-                        "protection-rol": "WORK"
+                        "protection-role": "WORK"
                     }
                 ],
                 #"layer-protocol-name": 'ETH',
